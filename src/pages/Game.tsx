@@ -26,19 +26,118 @@ function formatMoney(value: number): string {
   }).format(value);
 }
 
-function FloatingGameBackground({ isLight }: { isLight: boolean }) {
+// ── Money Ladder (compact sidebar on mobile = bottom drawer toggle) ──────────
+function MiniLadder({
+  currentIndex,
+  isLight,
+}: {
+  currentIndex: number;
+  isLight: boolean;
+}) {
+  const current = MONEY_LADDER[currentIndex];
+  const next = MONEY_LADDER[currentIndex + 1];
+
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      <div className={["absolute -top-24 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full blur-3xl soft-pulse", isLight ? "bg-orange-400/20" : "bg-yellow-400/10"].join(" ")} />
-      <div className={["absolute bottom-[-8rem] right-[-8rem] h-96 w-96 rounded-full blur-3xl soft-pulse", isLight ? "bg-emerald-400/20" : "bg-green-400/10"].join(" ")} />
-      <p className={["lyric-float absolute -left-10 top-32 text-6xl font-black", isLight ? "text-orange-700/10" : "text-white/10"].join(" ")}>"lyrics"</p>
-      <p className={["lyric-float absolute -right-16 bottom-40 text-6xl font-black [animation-delay:1.4s]", isLight ? "text-emerald-600/10" : "text-yellow-400/10"].join(" ")}>"million"</p>
-      <div className="mic-float absolute left-[7%] bottom-[18%] text-7xl opacity-10">🎙️</div>
+    <div className={[
+      "flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs font-black",
+      isLight
+        ? "border-orange-200 bg-white/80 text-slate-900"
+        : "border-white/10 bg-gray-950/80 text-white",
+    ].join(" ")}>
+      <span className={isLight ? "text-orange-700" : "text-yellow-400"}>💰</span>
+      <span>{formatMoney(current)}</span>
+      {next && (
+        <>
+          <span className={isLight ? "text-slate-300" : "text-gray-600"}>→</span>
+          <span className={isLight ? "text-slate-400" : "text-gray-500"}>{formatMoney(next)}</span>
+        </>
+      )}
     </div>
   );
 }
 
-function MoneyLadder({
+// ── Full ladder drawer ────────────────────────────────────────────────────────
+function LadderDrawer({
+  open,
+  onClose,
+  currentIndex,
+  celebrateIndex,
+  isBreaking,
+  isLight,
+  t,
+}: {
+  open: boolean;
+  onClose: () => void;
+  currentIndex: number;
+  celebrateIndex: number | null;
+  isBreaking: boolean;
+  isLight: boolean;
+  t: TranslationDictionary;
+}) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={onClose}>
+      <div
+        className={[
+          "relative mx-2 mb-2 rounded-[2rem] border p-5 shadow-2xl backdrop-blur-xl",
+          isLight
+            ? "border-orange-200 bg-white/95 shadow-orange-200/50"
+            : "border-white/10 bg-gray-950/95 shadow-black/60",
+          isBreaking ? "ring-2 ring-red-500/40" : "",
+        ].join(" ")}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center justify-between">
+          <p className={["text-[11px] font-black uppercase tracking-[0.25em]", isLight ? "text-orange-700" : "text-yellow-400"].join(" ")}>
+            {t.game.moneyLadder}
+          </p>
+          <button
+            onClick={onClose}
+            className={["rounded-xl px-3 py-1 text-xs font-black", isLight ? "bg-orange-100 text-orange-700" : "bg-white/10 text-gray-300"].join(" ")}
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="flex flex-col-reverse gap-2">
+          {MONEY_LADDER.map((amount, index) => {
+            const isCurrent = index === currentIndex;
+            const isPassed = index < currentIndex;
+            const isMillion = amount === 1_000_000;
+            const shouldCelebrate = celebrateIndex === index;
+
+            return (
+              <div
+                key={amount}
+                className={[
+                  "flex items-center justify-between rounded-xl border px-4 py-2.5 text-sm transition-all",
+                  isCurrent
+                    ? isLight
+                      ? "border-blue-400 bg-orange-500 text-white font-black shadow-lg"
+                      : "border-yellow-400 bg-yellow-400 text-black font-black shadow-lg shadow-yellow-400/20"
+                    : isPassed
+                    ? isLight
+                      ? "border-green-200 bg-green-50 text-green-700 font-bold"
+                      : "border-green-500/30 bg-green-500/10 text-green-300 font-bold"
+                    : isLight
+                    ? "border-orange-100 bg-white/60 text-slate-400"
+                    : "border-white/10 bg-white/[0.03] text-gray-500",
+                  shouldCelebrate ? "ladder-correct-pulse" : "",
+                ].join(" ")}
+              >
+                <span>{isMillion ? "👑 " : isPassed ? "✅ " : ""}{formatMoney(amount)}</span>
+                {isCurrent && <span className="text-xs opacity-70">← now</span>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Desktop sidebar ladder (lg+) ──────────────────────────────────────────────
+function DesktopLadder({
   currentIndex,
   celebrateIndex,
   isBreaking,
@@ -54,47 +153,35 @@ function MoneyLadder({
   return (
     <aside
       className={[
-        "relative overflow-hidden rounded-[2rem] border p-5 shadow-2xl backdrop-blur-xl transition-all",
+        "relative hidden lg:flex flex-col overflow-hidden rounded-[2rem] border p-5 shadow-2xl backdrop-blur-xl",
         isLight ? "border-orange-200 bg-white/85 shadow-orange-200/50" : "border-white/10 bg-gray-950/80 shadow-black/50",
-        isBreaking ? "ladder-breaking" : "",
+        isBreaking ? "ring-2 ring-red-500/40" : "",
       ].join(" ")}
     >
-      {isBreaking && (
-        <>
-          <div className="ladder-crack absolute left-[28%] top-8 h-[78%] w-[2px] rotate-[11deg] bg-red-400/70" />
-          <div className="ladder-crack absolute left-[55%] top-20 h-[62%] w-[2px] rotate-[-14deg] bg-red-400/60" />
-          <div className="ladder-crack absolute left-[72%] top-14 h-[70%] w-[2px] rotate-[8deg] bg-red-400/50" />
-          <div className="absolute inset-0 bg-red-500/10" />
-        </>
-      )}
-
-      <div className="relative mb-5">
-        <p className={["text-[11px] font-black uppercase tracking-[0.25em]", isLight ? "text-orange-700" : "text-yellow-400"].join(" ")}>{t.game.moneyLadder}</p>
-        <p className={["mt-2 text-sm font-bold", isLight ? "text-slate-500" : "text-gray-500"].join(" ")}>{t.game.ladderHint}</p>
-      </div>
-
-      <div className="relative flex flex-col-reverse gap-2.5">
+      <p className={["mb-4 text-[11px] font-black uppercase tracking-[0.25em]", isLight ? "text-orange-700" : "text-yellow-400"].join(" ")}>
+        {t.game.moneyLadder}
+      </p>
+      <div className="flex flex-col-reverse gap-2 flex-1">
         {MONEY_LADDER.map((amount, index) => {
           const isCurrent = index === currentIndex;
           const isPassed = index < currentIndex;
           const isMillion = amount === 1_000_000;
           const shouldCelebrate = celebrateIndex === index;
-          const widthPercent = 70 + index * 3;
-          const scale = 1 + index * 0.014;
+          const widthPercent = 72 + index * 2.8;
 
           return (
             <div
               key={amount}
               className={[
-                "relative flex items-center justify-center rounded-2xl border px-4 py-3 text-sm transition-all duration-500",
+                "flex items-center justify-center rounded-2xl border px-3 py-2.5 text-sm transition-all duration-500",
                 isCurrent
                   ? isLight
-                    ? "border-blue-500 bg-orange-500 text-white shadow-xl shadow-orange-300/50"
-                    : "border-yellow-400 bg-yellow-400 text-black shadow-xl shadow-yellow-400/30"
+                    ? "border-blue-500 bg-orange-500 text-white shadow-xl shadow-orange-300/50 font-black"
+                    : "border-yellow-400 bg-yellow-400 text-black shadow-xl shadow-yellow-400/30 font-black"
                   : isPassed
                   ? isLight
-                    ? "border-green-200 bg-green-50 text-green-700"
-                    : "border-green-500/30 bg-green-500/10 text-green-300"
+                    ? "border-green-200 bg-green-50 text-green-700 font-bold"
+                    : "border-green-500/30 bg-green-500/10 text-green-300 font-bold"
                   : isLight
                   ? "border-orange-100 bg-white/60 text-slate-500"
                   : "border-white/10 bg-white/[0.035] text-gray-400",
@@ -102,19 +189,9 @@ function MoneyLadder({
                 shouldCelebrate ? "ladder-correct-pulse ladder-unlock-glow" : "",
                 isBreaking && !isPassed && !isCurrent ? "opacity-30 blur-[1px]" : "",
               ].join(" ")}
-              style={{ width: `${widthPercent}%`, transform: `scale(${scale})`, alignSelf: "center" }}
+              style={{ width: `${widthPercent}%`, alignSelf: "center" }}
             >
-              {shouldCelebrate && (
-                <>
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 ladderCoinBurst text-xl">🪙</span>
-                  <span className="absolute -top-2 left-[35%] ladderCoinBurst text-sm [animation-delay:0.08s]">✨</span>
-                  <span className="absolute -top-2 right-[30%] ladderCoinBurst text-sm [animation-delay:0.16s]">✨</span>
-                </>
-              )}
-              <div className="flex items-center gap-2">
-                <span className={["font-black", isMillion ? "text-base sm:text-lg" : ""].join(" ")}>{formatMoney(amount)}</span>
-                {isMillion && <span className="text-lg">👑</span>}
-              </div>
+              {isMillion ? "👑 " : ""}{formatMoney(amount)}
             </div>
           );
         })}
@@ -123,7 +200,8 @@ function MoneyLadder({
   );
 }
 
-function JokerPanel({
+// ── Joker row (compact) ───────────────────────────────────────────────────────
+function JokerBar({
   left,
   used,
   disabled,
@@ -141,39 +219,50 @@ function JokerPanel({
   t: TranslationDictionary;
 }) {
   return (
-    <div className={["rounded-[1.5rem] border p-4 shadow-lg backdrop-blur-xl", isLight ? "border-orange-200 bg-white/80 shadow-orange-100/70" : "border-white/10 bg-gray-950/70 shadow-black/30"].join(" ")}>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className={["text-xs font-black uppercase tracking-[0.2em]", isLight ? "text-orange-700" : "text-yellow-400"].join(" ")}>{t.game.jokerTitle}</p>
-          <p className={["mt-1 text-sm font-bold", isLight ? "text-slate-500" : "text-gray-400"].join(" ")}>{t.game.jokerDescription}</p>
+    <div className={[
+      "flex items-center justify-between gap-3 rounded-2xl border px-4 py-3",
+      isLight ? "border-orange-200 bg-white/80" : "border-white/10 bg-gray-950/70",
+    ].join(" ")}>
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="text-lg shrink-0">🕵️</span>
+        <div className="min-w-0">
+          <p className={["text-[11px] font-black uppercase tracking-[0.18em] truncate", isLight ? "text-orange-700" : "text-yellow-400"].join(" ")}>
+            {t.game.jokerTitle}
+          </p>
+          <p className={["text-xs truncate", isLight ? "text-slate-500" : "text-gray-400"].join(" ")}>
+            {t.game.jokerDescription}
+          </p>
         </div>
-
-        {used && releaseYear ? (
-          <div className={["rounded-2xl border px-5 py-3 text-center", isLight ? "border-orange-200 bg-orange-50 text-orange-700" : "border-yellow-400/30 bg-yellow-400/10 text-yellow-300"].join(" ")}>
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] opacity-70">{t.game.revealed}</p>
-            <p className="text-2xl font-black">{releaseYear}</p>
-          </div>
-        ) : (
-          <button
-            onClick={onUse}
-            disabled={disabled}
-            className={["rounded-2xl px-5 py-3 text-sm font-black transition active:scale-[0.98] disabled:opacity-40", isLight ? "bg-orange-500 text-white hover:bg-orange-400" : "bg-yellow-400 text-black hover:bg-yellow-300"].join(" ")}
-          >
-            {t.game.useJoker} · {left} {t.game.left}
-          </button>
-        )}
       </div>
+
+      {used && releaseYear ? (
+        <div className={["rounded-xl border px-4 py-2 text-center shrink-0", isLight ? "border-orange-200 bg-orange-50 text-orange-700" : "border-yellow-400/30 bg-yellow-400/10 text-yellow-300"].join(" ")}>
+          <p className="text-[9px] font-black uppercase tracking-widest opacity-70">{t.game.revealed}</p>
+          <p className="text-xl font-black leading-none mt-0.5">{releaseYear}</p>
+        </div>
+      ) : (
+        <button
+          onClick={onUse}
+          disabled={disabled}
+          className={[
+            "shrink-0 rounded-xl px-4 py-2 text-xs font-black transition active:scale-[0.97] disabled:opacity-40",
+            isLight ? "bg-orange-500 text-white hover:bg-orange-400" : "bg-yellow-400 text-black hover:bg-yellow-300",
+          ].join(" ")}
+        >
+          {t.game.useJoker} · {left}
+        </button>
+      )}
     </div>
   );
 }
 
+// ── Main component ────────────────────────────────────────────────────────────
 export default function Game() {
   const { runId } = useParams<{ runId: string }>();
   const navigate = useNavigate();
   const { theme, isLight, toggleTheme } = useAppTheme();
   const { t } = useLanguage();
 
-  // ── State — tous les hooks AVANT tout return conditionnel ──
   const [run, setRun] = useState<(GameRun & { id: string }) | null>(null);
   const [loading, setLoading] = useState(true);
   const [answering, setAnswering] = useState(false);
@@ -182,6 +271,7 @@ export default function Game() {
   const [showCorrectMessage, setShowCorrectMessage] = useState(false);
   const [isLadderBreaking, setIsLadderBreaking] = useState(false);
   const [timerEnabled, setTimerEnabled] = useState(false);
+  const [ladderOpen, setLadderOpen] = useState(false);
   const answeringRef = useRef(false);
 
   useEffect(() => {
@@ -193,22 +283,11 @@ export default function Game() {
     });
   }, [runId]);
 
-  // ── Dérivés — calculés avant les early returns ──
-  const question = run
-    ? (run.questions[run.currentQuestionIndex] as GameQuestionWithMeta)
-    : null;
-  const isLastQuestion = run
-    ? run.currentQuestionIndex === run.questions.length - 1
-    : false;
-  const currentMoney = run
-    ? MONEY_LADDER[run.currentQuestionIndex] ?? MONEY_LADDER[MONEY_LADDER.length - 1]
-    : 0;
-  const securedMoney =
-    run && run.currentQuestionIndex > 0
-      ? MONEY_LADDER[run.currentQuestionIndex - 1]
-      : 0;
+  const question = run ? (run.questions[run.currentQuestionIndex] as GameQuestionWithMeta) : null;
+  const isLastQuestion = run ? run.currentQuestionIndex === run.questions.length - 1 : false;
+  const currentMoney = run ? MONEY_LADDER[run.currentQuestionIndex] ?? MONEY_LADDER[MONEY_LADDER.length - 1] : 0;
+  const securedMoney = run && run.currentQuestionIndex > 0 ? MONEY_LADDER[run.currentQuestionIndex - 1] : 0;
 
-  // ── handleAnswer déclaré avant useQuestionTimer ──
   const handleAnswer = async (songId: string, fromTimer = false) => {
     if (answeringRef.current || !run || !question) return;
     if (!fromTimer && question.selectedSongId) return;
@@ -276,9 +355,7 @@ export default function Game() {
       completedQuestionCount: run.currentQuestionIndex + 1,
       questions: updatedQuestions,
       status: newStatus,
-      ...(isLastQuestion
-        ? { endedAt: serverTimestamp(), totalTimeMs: Date.now() - run.startedAt.toMillis() }
-        : {}),
+      ...(isLastQuestion ? { endedAt: serverTimestamp(), totalTimeMs: Date.now() - run.startedAt.toMillis() } : {}),
     });
 
     setTimeout(async () => {
@@ -297,7 +374,6 @@ export default function Game() {
     }, 1400);
   };
 
-  // ── Timer — hook appelé ici, après tous les useState/useRef/useEffect ──
   const handleTimerExpire = () => {
     if (answeringRef.current || !question || question.selectedSongId) return;
     handleAnswer("__timeout__", true);
@@ -324,7 +400,6 @@ export default function Game() {
       jokerYearUsed: run.jokerYearUsed + 1,
       questions: updatedQuestions,
     };
-
     setRun(updatedRun);
     await updateDocument("gameRuns", run.id, {
       jokerYearLeft: run.jokerYearLeft - 1,
@@ -336,24 +411,30 @@ export default function Game() {
   const getAnswerStyle = (songId: string) => {
     if (!question?.selectedSongId) {
       return isLight
-        ? "border-orange-100 bg-white/85 text-slate-900 hover:border-orange-300 hover:bg-orange-50"
-        : "border-white/10 bg-white/[0.04] text-white hover:bg-white/[0.08]";
+        ? "border-orange-100 bg-white/85 text-slate-900 hover:border-orange-300 hover:bg-orange-50 active:scale-[0.98]"
+        : "border-white/10 bg-white/[0.04] text-white hover:bg-white/[0.08] active:scale-[0.98]";
     }
-    if (songId === question.correctSongId) return "border-green-400/60 bg-green-500/20 text-green-100";
-    if (songId === question.selectedSongId) return "border-red-400/60 bg-red-500/20 text-red-100";
+    if (songId === question.correctSongId)
+      return isLight
+        ? "border-green-400 bg-green-50 text-green-800"
+        : "border-green-400/60 bg-green-500/20 text-green-100";
+    if (songId === question.selectedSongId)
+      return isLight
+        ? "border-red-400 bg-red-50 text-red-800"
+        : "border-red-400/60 bg-red-500/20 text-red-100";
     return isLight
-      ? "border-orange-100 bg-white/50 text-slate-300 opacity-60"
-      : "border-white/10 bg-white/[0.02] text-gray-600 opacity-60";
+      ? "border-orange-100 bg-white/50 text-slate-300 opacity-50"
+      : "border-white/10 bg-white/[0.02] text-gray-600 opacity-50";
   };
 
   const pageBg = isLight
     ? "bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-100 text-slate-950"
     : "bg-[#050509] text-white";
 
-  // ── Early returns APRÈS tous les hooks ──
+  // ── Loading ──
   if (loading) {
     return (
-      <div className={`flex min-h-screen items-center justify-center ${pageBg}`}>
+      <div className={`flex h-screen items-center justify-center ${pageBg}`}>
         <div className="text-center">
           <div className={["mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4", isLight ? "border-orange-100 border-t-orange-500" : "border-white/10 border-t-yellow-400"].join(" ")} />
           <p className={isLight ? "text-sm font-bold text-slate-500" : "text-sm font-bold text-gray-400"}>{t.common.loadingGame}</p>
@@ -364,130 +445,186 @@ export default function Game() {
 
   if (!run || !question) {
     return (
-      <div className={`flex min-h-screen items-center justify-center px-5 text-center ${pageBg}`}>
+      <div className={`flex h-screen items-center justify-center px-5 text-center ${pageBg}`}>
         <div>
           <p className="text-3xl font-black">{t.game.gameNotFound}</p>
-          <button onClick={() => navigate("/")} className={["mt-5 rounded-2xl px-6 py-3 font-black", isLight ? "bg-orange-500 text-white" : "bg-yellow-400 text-black"].join(" ")}>{t.game.backHome}</button>
+          <button onClick={() => navigate("/")} className={["mt-5 rounded-2xl px-6 py-3 font-black", isLight ? "bg-orange-500 text-white" : "bg-yellow-400 text-black"].join(" ")}>
+            {t.game.backHome}
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={`relative min-h-screen overflow-hidden ${pageBg}`}>
-      <FloatingGameBackground isLight={isLight} />
+    // ── Full viewport, no scroll on mobile ──────────────────────────────────
+    <div className={`h-[100dvh] overflow-hidden flex flex-col ${pageBg}`}>
 
-      <main className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-5 lg:px-8">
-        <header className="flex items-start justify-between gap-4">
-          <button onClick={() => navigate("/")} className="flex items-center gap-3 text-left transition hover:opacity-80">
-            <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl"><img src="/logo-mark.png" alt="Lyric Millionaire" className="h-full w-full object-contain" /></div>
-            <div>
-              <p className={["text-xl font-black leading-none tracking-tight sm:text-2xl", isLight ? "text-slate-950" : "text-white"].join(" ")}>{t.common.brand}</p>
-              <p className={["mt-1 text-sm font-bold", isLight ? "text-orange-700" : "text-yellow-400"].join(" ")}>{t.common.tagline}</p>
-            </div>
-          </button>
-
-          <div className="flex items-center gap-2">
-            <LanguageSelector isLight={isLight} />
-            <ThemeToggle theme={theme} onToggle={toggleTheme} />
+      {/* ── Header bar ──────────────────────────────────────────────────── */}
+      <header className="shrink-0 flex items-center justify-between gap-3 px-4 pt-3 pb-2 lg:px-8 lg:pt-5">
+        <button onClick={() => navigate("/")} className="flex items-center gap-2 transition hover:opacity-80">
+          <div className="h-9 w-9 shrink-0 overflow-hidden rounded-xl">
+            <img src="/logo-mark.png" alt="Lyric Millionaire" className="h-full w-full object-contain" />
           </div>
-        </header>
-
-        {/* ── Timer ── */}
-        <div className="mt-4 flex items-center gap-3">
-          <div className={["relative flex-1 h-2 rounded-full overflow-hidden", isLight ? "bg-orange-100" : "bg-white/10"].join(" ")}>
-            <div
-              className={["absolute left-0 top-0 h-full rounded-full", isUrgent ? "bg-red-500" : isLight ? "bg-orange-500" : "bg-yellow-400"].join(" ")}
-              style={{ width: `${progress * 100}%`, transition: "width 1s linear" }}
-            />
+          <div className="hidden sm:block">
+            <p className={["text-base font-black leading-none", isLight ? "text-slate-950" : "text-white"].join(" ")}>{t.common.brand}</p>
+            <p className={["text-xs font-bold", isLight ? "text-orange-700" : "text-yellow-400"].join(" ")}>{t.common.tagline}</p>
           </div>
-          <span className={["text-sm font-black w-6 text-right tabular-nums", isUrgent ? "text-red-400" : isLight ? "text-orange-700" : "text-gray-400"].join(" ")}>
-            {timeLeft}
+        </button>
+
+        {/* Progress pill */}
+        <div className={["flex items-center gap-2 rounded-full border px-3 py-1.5", isLight ? "border-orange-200 bg-white/80" : "border-white/10 bg-gray-950/70"].join(" ")}>
+          <span className={["text-xs font-black", isLight ? "text-orange-700" : "text-yellow-400"].join(" ")}>
+            {run.currentQuestionIndex + 1}
           </span>
+          <span className={["text-xs", isLight ? "text-slate-400" : "text-gray-600"].join(" ")}>/</span>
+          <span className={["text-xs font-bold", isLight ? "text-slate-500" : "text-gray-400"].join(" ")}>
+            {run.questions.length}
+          </span>
+          {/* Mini progress dots */}
+          <div className="flex gap-0.5 ml-1">
+            {run.questions.map((_, i) => (
+              <div
+                key={i}
+                className={[
+                  "h-1.5 w-1.5 rounded-full transition-all",
+                  i < run.currentQuestionIndex
+                    ? isLight ? "bg-green-500" : "bg-green-400"
+                    : i === run.currentQuestionIndex
+                    ? isLight ? "bg-orange-500" : "bg-yellow-400"
+                    : isLight ? "bg-orange-200" : "bg-white/15",
+                ].join(" ")}
+              />
+            ))}
+          </div>
         </div>
 
-        <div className="mt-6 grid flex-1 gap-6 lg:grid-cols-[1fr_370px]">
-          <section className="flex flex-col justify-center py-4">
-            <div className="mb-5">
-              <p className={["text-xs font-black uppercase tracking-[0.22em]", isLight ? "text-orange-700" : "text-yellow-400"].join(" ")}>
-                {t.game.question} {run.currentQuestionIndex + 1}
-                <span className={isLight ? "text-slate-400" : "text-gray-600"}> / {run.questions.length}</span>
-              </p>
+        <div className="flex items-center gap-1.5">
+          {/* Mobile: money pill + ladder toggle */}
+          <button
+            onClick={() => setLadderOpen(true)}
+            className="lg:hidden"
+            aria-label="Open money ladder"
+          >
+            <MiniLadder currentIndex={run.currentQuestionIndex} isLight={isLight} />
+          </button>
+          <LanguageSelector isLight={isLight} />
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
+        </div>
+      </header>
 
-              <div className={["mt-4 h-2 rounded-full", isLight ? "bg-orange-100" : "bg-white/10"].join(" ")}>
-                <div
-                  className={["h-2 rounded-full transition-all duration-500", isLight ? "bg-orange-500" : "bg-yellow-400"].join(" ")}
-                  style={{ width: `${((run.currentQuestionIndex + 1) / run.questions.length) * 100}%` }}
-                />
-              </div>
+      {/* ── Timer bar ───────────────────────────────────────────────────── */}
+      <div className="shrink-0 flex items-center gap-2 px-4 lg:px-8">
+        <div className={["relative flex-1 h-1.5 rounded-full overflow-hidden", isLight ? "bg-orange-100" : "bg-white/10"].join(" ")}>
+          <div
+            className={["absolute left-0 top-0 h-full rounded-full transition-colors", isUrgent ? "bg-red-500" : isLight ? "bg-orange-500" : "bg-yellow-400"].join(" ")}
+            style={{ width: `${progress * 100}%`, transition: "width 1s linear" }}
+          />
+        </div>
+        <span className={["w-5 text-right text-xs font-black tabular-nums", isUrgent ? "text-red-400" : isLight ? "text-orange-700" : "text-gray-400"].join(" ")}>
+          {timeLeft}
+        </span>
+      </div>
+
+      {/* ── Body — fills remaining height ───────────────────────────────── */}
+      <div className="flex-1 min-h-0 grid lg:grid-cols-[1fr_340px] xl:grid-cols-[1fr_370px] gap-4 px-4 py-3 lg:px-8 lg:py-5">
+
+        {/* ── Left: game content ─────────────────────────────────────────── */}
+        <div className="flex flex-col gap-3 min-h-0">
+
+          {/* Game-over banner */}
+          {gameOverMessage && (
+            <div className="shrink-0 rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-center text-sm font-black text-red-300">
+              {gameOverMessage}
             </div>
+          )}
 
-            {gameOverMessage && (
-              <div className="mb-4 rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-center text-lg font-black text-red-300">
-                {gameOverMessage}
-              </div>
-            )}
-
-            <div className="mb-4">
-              <JokerPanel
-                left={run.jokerYearLeft}
-                used={question.usedJokerYear}
-                disabled={run.jokerYearLeft <= 0 || !!question.selectedSongId || !!question.usedJokerYear}
-                releaseYear={question.releaseYear}
-                onUse={handleJoker}
-                isLight={isLight}
-                t={t}
-              />
-            </div>
-
-            <div
-              key={`${run.currentQuestionIndex}-${question.snippetId}`}
-              className={["question-enter rounded-[2rem] border p-7 shadow-2xl backdrop-blur-xl", isLight ? "border-orange-200 bg-white/85 shadow-orange-200/50" : "border-white/10 bg-gray-950/75 shadow-black/40", showCorrectMessage ? "correct-flash" : ""].join(" ")}
-            >
-              <p className={["text-4xl font-black leading-tight tracking-tight sm:text-6xl", isLight ? "text-slate-950" : "text-white"].join(" ")}>
-                "{question.snippetText}"
-              </p>
-
-              {showCorrectMessage && (
-                <div className={["success-pop mt-6 inline-flex rounded-full border px-4 py-2 text-sm font-black", isLight ? "border-green-300 bg-green-50 text-green-700" : "border-green-400/30 bg-green-500/10 text-green-300"].join(" ")}>
-                  {t.game.correctAnswer} · {formatMoney(currentMoney)}
-                </div>
-              )}
-            </div>
-
-            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-              {question.answers.map((answer, index) => (
-                <button
-                  key={answer.songId}
-                  onClick={() => handleAnswer(answer.songId)}
-                  disabled={!!question.selectedSongId || answering}
-                  className={["group min-h-[108px] rounded-2xl border px-4 py-4 text-left shadow-lg shadow-black/10 transition active:scale-[0.98]", getAnswerStyle(answer.songId)].join(" ")}
-                >
-                  <div className="flex h-full items-center gap-4">
-                    <span className={["flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-black", isLight ? "bg-orange-50 text-orange-700" : "bg-black/35 text-yellow-400"].join(" ")}>
-                      {String.fromCharCode(65 + index)}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-lg font-black">{answer.title}</p>
-                      <p className={["mt-1 truncate text-sm", isLight ? "text-slate-500" : "text-gray-400"].join(" ")}>{answer.artistName}</p>
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <div className="flex items-center">
-            <MoneyLadder
-              currentIndex={run.currentQuestionIndex}
-              celebrateIndex={celebrateIndex}
-              isBreaking={isLadderBreaking}
+          {/* Joker bar */}
+          <div className="shrink-0">
+            <JokerBar
+              left={run.jokerYearLeft}
+              used={question.usedJokerYear}
+              disabled={run.jokerYearLeft <= 0 || !!question.selectedSongId || !!question.usedJokerYear}
+              releaseYear={question.releaseYear}
+              onUse={handleJoker}
               isLight={isLight}
               t={t}
             />
           </div>
+
+          {/* Lyric card — flex-1 so it takes available space */}
+          <div
+            key={`${run.currentQuestionIndex}-${question.snippetId}`}
+            className={[
+              "question-enter flex-1 min-h-0 flex flex-col justify-center rounded-[1.6rem] border px-5 py-4 shadow-2xl backdrop-blur-xl overflow-hidden",
+              isLight ? "border-orange-200 bg-white/85 shadow-orange-200/40" : "border-white/10 bg-gray-950/75 shadow-black/40",
+              showCorrectMessage ? "correct-flash" : "",
+            ].join(" ")}
+          >
+            <p className={[
+              "font-black leading-snug tracking-tight",
+              // Responsive font: clamp between readable on small screens and large on big ones
+              "text-2xl sm:text-3xl lg:text-4xl xl:text-5xl",
+              isLight ? "text-slate-950" : "text-white",
+            ].join(" ")}>
+              "{question.snippetText}"
+            </p>
+
+            {showCorrectMessage && (
+              <div className={["success-pop mt-4 inline-flex self-start rounded-full border px-3 py-1.5 text-xs font-black", isLight ? "border-green-300 bg-green-50 text-green-700" : "border-green-400/30 bg-green-500/10 text-green-300"].join(" ")}>
+                {t.game.correctAnswer} · {formatMoney(currentMoney)}
+              </div>
+            )}
+          </div>
+
+          {/* Answer grid — always 2×2, no overflow */}
+          <div className="shrink-0 grid grid-cols-2 gap-2">
+            {question.answers.map((answer, index) => (
+              <button
+                key={answer.songId}
+                onClick={() => handleAnswer(answer.songId)}
+                disabled={!!question.selectedSongId || answering}
+                className={[
+                  "rounded-2xl border px-3 py-3 text-left shadow-md transition",
+                  getAnswerStyle(answer.songId),
+                ].join(" ")}
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className={["flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-xs font-black", isLight ? "bg-orange-50 text-orange-700" : "bg-black/35 text-yellow-400"].join(" ")}>
+                    {String.fromCharCode(65 + index)}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-black leading-tight">{answer.title}</p>
+                    <p className={["truncate text-xs mt-0.5", isLight ? "text-slate-500" : "text-gray-400"].join(" ")}>
+                      {answer.artistName}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
-      </main>
+
+        {/* ── Right: desktop ladder ─────────────────────────────────────── */}
+        <DesktopLadder
+          currentIndex={run.currentQuestionIndex}
+          celebrateIndex={celebrateIndex}
+          isBreaking={isLadderBreaking}
+          isLight={isLight}
+          t={t}
+        />
+      </div>
+
+      {/* ── Mobile ladder drawer ─────────────────────────────────────────── */}
+      <LadderDrawer
+        open={ladderOpen}
+        onClose={() => setLadderOpen(false)}
+        currentIndex={run.currentQuestionIndex}
+        celebrateIndex={celebrateIndex}
+        isBreaking={isLadderBreaking}
+        isLight={isLight}
+        t={t}
+      />
     </div>
   );
 }

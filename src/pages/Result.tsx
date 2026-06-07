@@ -39,6 +39,18 @@ function formatDuration(ms?: number): string {
   return `${minutes}m ${remainingSeconds}s`;
 }
 
+function getFunnyComment(score: number, status: string, t: TranslationDictionary): string {
+  const fc = t.funnyComments;
+  if (status === "won" || score >= 1_000_000) return fc.winner;
+  if (score >= 500_000) return fc.amazing;
+  if (score >= 100_000) return fc.great;
+  if (score >= 25_000) return fc.good;
+  if (score >= 10_000) return fc.medium;
+  if (score >= 500) return fc.small;
+  if (score >= 100) return fc.tiny;
+  return fc.zero;
+}
+
 function getResultStatus(run: GameRun, t: TranslationDictionary) {
   const status = String(run.status);
   if (status === "won") {
@@ -410,7 +422,9 @@ export default function Result() {
                 <div className="mt-5 sm:mt-8">
                   <p className={["text-[10px] font-black uppercase tracking-[0.24em] sm:text-xs", isLight ? "text-slate-500" : "text-gray-500"].join(" ")}>{t.result.moneyReached}</p>
                   <p className={["mt-2 text-5xl font-black tracking-tight sm:text-8xl", result.tone === "win" ? isLight ? "text-orange-600" : "text-yellow-400" : "text-red-400"].join(" ")}>{formatMoney(moneyReached)}</p>
-                  <p className={["mt-3 max-w-xl text-sm font-bold sm:mt-4 sm:text-lg", isLight ? "text-slate-600" : "text-gray-400"].join(" ")}>{result.description}</p>
+                  <p className={["mt-3 max-w-xl text-sm font-bold sm:mt-4 sm:text-lg", isLight ? "text-slate-600" : "text-gray-400"].join(" ")}>
+                    {getFunnyComment(moneyReached, String(run.status), t)}
+                  </p>
                 </div>
 
                 <div className="mt-5 grid grid-cols-5 gap-2 sm:mt-8 sm:gap-3">
@@ -458,16 +472,19 @@ export default function Result() {
           <aside className={["rounded-[1.5rem] border p-4 sm:rounded-[2rem] sm:p-5", isLight ? "border-orange-200 bg-white/60" : "border-white/10 bg-white/[0.03]"].join(" ")}>
             <p className={["text-xs font-black uppercase tracking-[0.25em]", isLight ? "text-orange-700" : "text-yellow-400"].join(" ")}>{t.result.runDetails}</p>
             <div className="mt-4 flex max-h-[360px] flex-col gap-3 overflow-y-auto pr-1">
-              {run.questions.map((question, index) => (
-                <div key={`${question.snippetId}-${index}`} className={["flex items-center justify-between gap-3 rounded-2xl border px-3 py-3", question.isCorrect ? isLight ? "border-green-200 bg-green-50 text-green-700" : "border-green-500/25 bg-green-500/10 text-green-300" : isLight ? "border-red-200 bg-red-50 text-red-700" : "border-red-500/25 bg-red-500/10 text-red-300"].join(" ")}>
-                  <span className="text-sm font-black">Q{index + 1}</span>
+              {run.questions.filter((q) => q.selectedSongId).map((question) => {
+                const realIndex = run.questions.indexOf(question);
+                return (
+                <div key={`${question.snippetId}-${realIndex}`} className={["flex items-center justify-between gap-3 rounded-2xl border px-3 py-3", question.isCorrect ? isLight ? "border-green-200 bg-green-50 text-green-700" : "border-green-500/25 bg-green-500/10 text-green-300" : isLight ? "border-red-200 bg-red-50 text-red-700" : "border-red-500/25 bg-red-500/10 text-red-300"].join(" ")}>
+                  <span className="text-sm font-black">Q{realIndex + 1}</span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-xs font-bold">{question.correctTitle}</p>
                     <p className="truncate text-xs font-bold text-gray-500">{question.correctArtist}</p>
                   </div>
                   <span>{question.isCorrect ? "✅" : "❌"}</span>
                 </div>
-              ))}
+              );
+              })}
             </div>
           </aside>
         </section>
