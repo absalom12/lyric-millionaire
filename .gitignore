@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+
+# Build
+dist/
+build/
+.vite/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Firebase secrets / service accounts
+serviceAccount*.json
+firebase-adminsdk*.json
+*.pem
+*.key
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Python scripts / cache
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Data imports / generated files
+*.xlsx
+*.xls
+*.csv
+*_filled.xlsx
+spotify_urls_for_apify.csv
+apify_spotify_streams_raw.json
+
+# Local screenshots / exports
+screenshots/
+exports/
