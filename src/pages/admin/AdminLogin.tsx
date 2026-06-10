@@ -35,6 +35,8 @@ export default function AdminLogin() {
         )}
 
         <input
+          id="admin-email"
+          name="email"
           type="email"
           placeholder="Email"
           value={email}
@@ -43,6 +45,8 @@ export default function AdminLogin() {
         />
 
         <input
+          id="admin-password"
+          name="password"
           type="password"
           placeholder="Mot de passe"
           value={password}

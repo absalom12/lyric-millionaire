@@ -263,6 +263,8 @@ export default function AdminGenerate() {
 
         <div className="flex gap-3">
           <input
+            id="artist-search"
+            name="artist-search"
             type="text"
             value={artistQuery}
             onChange={(e) => setArtistQuery(e.target.value)}
