@@ -32,6 +32,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminImport from "./pages/admin/AdminImport";
 import AdminSnippets from "./pages/admin/AdminSnippets";
 import AdminDaily from "./pages/admin/AdminDaily";
+import AdminSnippetGen from "./pages/admin/AdminSnippetGen";
 
 export default function App() {
   return (
@@ -69,6 +70,7 @@ export default function App() {
             <Route path="import" element={<AdminImport />} />
             <Route path="snippets" element={<AdminSnippets />} />
             <Route path="daily" element={<AdminDaily />} />
+            <Route path="maker" element={<AdminSnippetGen />} />
           </Route>
 
           {/* Catch-all */}

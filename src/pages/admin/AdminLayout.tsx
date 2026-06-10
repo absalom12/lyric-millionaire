@@ -14,6 +14,7 @@ const navItems: AdminNavItem[] = [
   { label: "Import",       path: "/admin/import",   icon: "📥", description: "CSV / Excel" },
   { label: "Snippets",     path: "/admin/snippets", icon: "🎵", description: "Modération catalogue" },
   { label: "Daily Artist", path: "/admin/daily",    icon: "⭐", description: "Artiste du jour" },
+  { label: "Snippets auto", path: "/admin/maker",   icon: "🤖", description: "Génération auto" },
 ];
 
 export default function AdminLayout() {
