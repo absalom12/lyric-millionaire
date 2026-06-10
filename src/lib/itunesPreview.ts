@@ -2,31 +2,33 @@ function normalize(s: string): string {
   return s
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")  // strip accents
-    .replace(/\(.*?\)/g, "")          // remove (feat. xxx), (remix), (live), etc.
-    .replace(/\[.*?\]/g, "")          // remove [deluxe], [explicit], etc.
-    .replace(/\bfeat\..*$/i, "")      // remove trailing feat. …
+    .replace(/[̀-ͯ]/g, "")   // strip accents (é→e, à→a, etc.)
+    .replace(/\(.*?\)/g, "")           // remove (feat. SCH), (Bande Originale), etc.
+    .replace(/\[.*?\]/g, "")           // remove [Explicit], [Deluxe], etc.
+    .replace(/\bfeat\..*$/i, "")       // remove feat. … at end
     .replace(/\bft\..*$/i, "")
-    .replace(/\bx\s+\w/i, "")        // remove "x ArtistName" collabs
     .replace(/\s+/g, " ")
     .trim();
 }
 
-function scoreMatch(track: { title: string; artistName: string }, songTitle: string, artistName: string): number {
-  const nt = normalize(track.title);
+function isExactMatch(
+  trackTitle: string,
+  trackArtist: string,
+  songTitle: string,
+  artistName: string
+): boolean {
+  const nt = normalize(trackTitle);
   const ns = normalize(songTitle);
-  const na = normalize(track.artistName);
+  const na = normalize(trackArtist);
   const nArtist = normalize(artistName);
 
-  let score = 0;
-  if (nt === ns) score += 3;
-  else if (nt.startsWith(ns) || ns.startsWith(nt)) score += 2;
-  else if (nt.includes(ns) || ns.includes(nt)) score += 1;
+  // Title: exact OR track title starts with our title (handles "Validé (feat. SCH)" → "Validé")
+  const titleMatch = nt === ns || nt.startsWith(ns + " ") || nt.startsWith(ns + "(");
 
-  if (na === nArtist) score += 2;
-  else if (na.includes(nArtist) || nArtist.includes(na)) score += 1;
+  // Artist: exact OR one contains the other (handles "Booba" in "Booba feat. SCH")
+  const artistMatch = na === nArtist || na.includes(nArtist) || nArtist.includes(na);
 
-  return score;
+  return titleMatch && artistMatch;
 }
 
 async function fetchDeezerPreview(
@@ -34,22 +36,19 @@ async function fetchDeezerPreview(
   artistName: string
 ): Promise<string | null> {
   try {
-    const q = encodeURIComponent(`${songTitle} ${artistName}`);
+    // Field search is much more precise than free text
+    const q = encodeURIComponent(`artist:"${artistName}" track:"${songTitle}"`);
     const res = await fetch(`https://api.deezer.com/search?q=${q}&limit=10`);
     if (!res.ok) return null;
 
     const data = await res.json();
-    const tracks: any[] = (data.data ?? [])
-      .filter((t: any) => t.preview)
-      .map((t: any) => ({
-        ...t,
-        artistName: t.artist?.name ?? "",
-        _score: scoreMatch({ title: t.title, artistName: t.artist?.name ?? "" }, songTitle, artistName),
-      }))
-      .filter((t: any) => t._score >= 2)   // must match at least title OR artist loosely + one more point
-      .sort((a: any, b: any) => b._score - a._score);
+    const tracks: any[] = (data.data ?? []).filter((t: any) => t.preview);
 
-    return tracks[0]?.preview ?? null;
+    const match = tracks.find((t) =>
+      isExactMatch(t.title, t.artist?.name ?? "", songTitle, artistName)
+    );
+
+    return match?.preview ?? null; // null if no exact match — never return a wrong song
   } catch {
     return null;
   }
@@ -67,16 +66,15 @@ async function fetchItunesPreview(
     if (!res.ok) return null;
 
     const data = await res.json();
-    const tracks: any[] = (data.results ?? [])
-      .filter((r: any) => r.kind === "song" && r.previewUrl)
-      .map((r: any) => ({
-        ...r,
-        _score: scoreMatch({ title: r.trackName ?? "", artistName: r.artistName ?? "" }, songTitle, artistName),
-      }))
-      .filter((r: any) => r._score >= 2)
-      .sort((a: any, b: any) => b._score - a._score);
+    const tracks: any[] = (data.results ?? []).filter(
+      (r: any) => r.kind === "song" && r.previewUrl
+    );
 
-    return tracks[0]?.previewUrl ?? null;
+    const match = tracks.find((r) =>
+      isExactMatch(r.trackName ?? "", r.artistName ?? "", songTitle, artistName)
+    );
+
+    return match?.previewUrl ?? null;
   } catch {
     return null;
   }
