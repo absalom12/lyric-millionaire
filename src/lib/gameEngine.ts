@@ -394,6 +394,7 @@ export async function generateGameRun(
       releaseYear: song.releaseYear,
       difficulty: Number(snippet.difficulty),
       spotifyStreams: song.spotifyStreams,
+      previewUrl: song.previewUrl ?? null,
       answers: shuffle([correctAnswer, ...wrongAnswers]),
     });
 

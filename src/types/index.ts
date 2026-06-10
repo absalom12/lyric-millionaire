@@ -91,6 +91,7 @@ export interface GameQuestion {
   releaseYear?: number;
   difficulty?: number;
   spotifyStreams?: number;
+  previewUrl?: string | null;
   answers: QuestionAnswer[];
   selectedSongId?: string;
   isCorrect?: boolean;

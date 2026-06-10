@@ -272,7 +272,10 @@ export default function Game() {
   const [isLadderBreaking, setIsLadderBreaking] = useState(false);
   const [timerEnabled, setTimerEnabled] = useState(false);
   const [ladderOpen, setLadderOpen] = useState(false);
+  const [playMode, setPlayMode] = useState<"lyrics" | "blindtest">("lyrics");
+  const [audioPlaying, setAudioPlaying] = useState(false);
   const answeringRef = useRef(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
     if (!runId) return;
@@ -282,6 +285,28 @@ export default function Game() {
       setTimerEnabled(true);
     });
   }, [runId]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    audio.pause();
+    audio.currentTime = 0;
+    setAudioPlaying(false);
+
+    if (playMode === "blindtest" && question?.previewUrl) {
+      audio.src = question.previewUrl;
+      audio.play()
+        .then(() => setAudioPlaying(true))
+        .catch(() => {});
+    }
+
+    return () => {
+      audio.pause();
+      setAudioPlaying(false);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [question?.snippetId, playMode]);
 
   const question = run ? (run.questions[run.currentQuestionIndex] as GameQuestionWithMeta) : null;
   const isLastQuestion = run ? run.currentQuestionIndex === run.questions.length - 1 : false;
@@ -295,6 +320,11 @@ export default function Game() {
     answeringRef.current = true;
     setAnswering(true);
     setTimerEnabled(false);
+
+    if (audioRef.current) {
+      audioRef.current.pause();
+      setAudioPlaying(false);
+    }
 
     const isCorrect = !fromTimer && songId === question.correctSongId;
     const updatedQuestions = run.questions.map((q, i) =>
@@ -508,6 +538,35 @@ export default function Game() {
           >
             <MiniLadder currentIndex={run.currentQuestionIndex} isLight={isLight} />
           </button>
+
+          {/* Mode toggle: Lyrics / Blindtest */}
+          <div className={["flex items-center rounded-xl border overflow-hidden text-xs font-black", isLight ? "border-orange-200" : "border-white/15"].join(" ")}>
+            <button
+              onClick={() => setPlayMode("lyrics")}
+              aria-label="Lyrics mode"
+              className={[
+                "px-2.5 py-1.5 transition",
+                playMode === "lyrics"
+                  ? isLight ? "bg-orange-500 text-white" : "bg-yellow-400 text-black"
+                  : isLight ? "text-slate-400 hover:text-slate-600" : "text-gray-500 hover:text-gray-300",
+              ].join(" ")}
+            >
+              🎵
+            </button>
+            <button
+              onClick={() => setPlayMode("blindtest")}
+              aria-label="Blindtest mode"
+              className={[
+                "px-2.5 py-1.5 transition",
+                playMode === "blindtest"
+                  ? isLight ? "bg-orange-500 text-white" : "bg-yellow-400 text-black"
+                  : isLight ? "text-slate-400 hover:text-slate-600" : "text-gray-500 hover:text-gray-300",
+              ].join(" ")}
+            >
+              🎧
+            </button>
+          </div>
+
           <LanguageSelector isLight={isLight} />
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
         </div>
@@ -552,27 +611,99 @@ export default function Game() {
             />
           </div>
 
-          {/* Lyric card — flex-1 so it takes available space */}
+          {/* Main card — lyrics or blindtest */}
           <div
-            key={`${run.currentQuestionIndex}-${question.snippetId}`}
+            key={`${run.currentQuestionIndex}-${question.snippetId}-${playMode}`}
             className={[
               "question-enter flex-1 min-h-0 flex flex-col justify-center rounded-[1.6rem] border px-5 py-4 shadow-2xl backdrop-blur-xl overflow-hidden",
               isLight ? "border-orange-200 bg-white/85 shadow-orange-200/40" : "border-white/10 bg-gray-950/75 shadow-black/40",
               showCorrectMessage ? "correct-flash" : "",
             ].join(" ")}
           >
-            <p className={[
-              "font-black leading-snug tracking-tight",
-              // Responsive font: clamp between readable on small screens and large on big ones
-              "text-2xl sm:text-3xl lg:text-4xl xl:text-5xl",
-              isLight ? "text-slate-950" : "text-white",
-            ].join(" ")}>
-              "{question.snippetText}"
-            </p>
+            {playMode === "lyrics" ? (
+              <>
+                <p className={[
+                  "font-black leading-snug tracking-tight",
+                  "text-2xl sm:text-3xl lg:text-4xl xl:text-5xl",
+                  isLight ? "text-slate-950" : "text-white",
+                ].join(" ")}>
+                  "{question.snippetText}"
+                </p>
 
-            {showCorrectMessage && (
-              <div className={["success-pop mt-4 inline-flex self-start rounded-full border px-3 py-1.5 text-xs font-black", isLight ? "border-green-300 bg-green-50 text-green-700" : "border-green-400/30 bg-green-500/10 text-green-300"].join(" ")}>
-                {t.game.correctAnswer} · {formatMoney(currentMoney)}
+                {showCorrectMessage && (
+                  <div className={["success-pop mt-4 inline-flex self-start rounded-full border px-3 py-1.5 text-xs font-black", isLight ? "border-green-300 bg-green-50 text-green-700" : "border-green-400/30 bg-green-500/10 text-green-300"].join(" ")}>
+                    {t.game.correctAnswer} · {formatMoney(currentMoney)}
+                  </div>
+                )}
+              </>
+            ) : (
+              /* ── Blindtest card ─────────────────────────────────────── */
+              <div className="flex flex-col items-center justify-center gap-5 h-full">
+                {question.previewUrl ? (
+                  <>
+                    {/* Waveform bars */}
+                    <div className="flex items-end gap-1.5 h-16">
+                      {[0.45, 0.75, 1, 0.6, 0.88, 0.5, 0.78, 0.62, 0.95, 0.42, 0.7, 0.55].map((h, i) => (
+                        <div
+                          key={i}
+                          className={[
+                            "rounded-full transition-opacity duration-300",
+                            audioPlaying ? "wave-bar" : "",
+                            isLight ? "bg-orange-500" : "bg-yellow-400",
+                          ].join(" ")}
+                          style={{
+                            width: 5,
+                            height: `${h * 48}px`,
+                            opacity: audioPlaying ? 1 : 0.35,
+                            animationDelay: `${i * 0.075}s`,
+                          }}
+                        />
+                      ))}
+                    </div>
+
+                    {/* Play / Pause button */}
+                    <button
+                      onClick={() => {
+                        const audio = audioRef.current;
+                        if (!audio) return;
+                        if (audioPlaying) {
+                          audio.pause();
+                        } else {
+                          audio.play().then(() => setAudioPlaying(true)).catch(() => {});
+                        }
+                      }}
+                      disabled={!!question.selectedSongId}
+                      className={[
+                        "flex items-center gap-2 rounded-2xl px-7 py-3 font-black text-sm transition active:scale-95 disabled:opacity-50",
+                        isLight ? "bg-orange-500 text-white hover:bg-orange-400" : "bg-yellow-400 text-black hover:bg-yellow-300",
+                      ].join(" ")}
+                    >
+                      {audioPlaying ? "⏸ Pause" : "▶ Jouer"}
+                    </button>
+
+                    {showCorrectMessage && (
+                      <div className={["success-pop inline-flex rounded-full border px-3 py-1.5 text-xs font-black", isLight ? "border-green-300 bg-green-50 text-green-700" : "border-green-400/30 bg-green-500/10 text-green-300"].join(" ")}>
+                        {t.game.correctAnswer} · {formatMoney(currentMoney)}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  /* No preview available fallback */
+                  <div className="text-center">
+                    <p className="text-4xl mb-3">🎧</p>
+                    <p className={["text-sm font-bold", isLight ? "text-slate-400" : "text-gray-500"].join(" ")}>
+                      Aucun extrait disponible
+                    </p>
+                    <p className={["text-xs mt-1", isLight ? "text-slate-300" : "text-gray-600"].join(" ")}>
+                      Passe en mode 🎵 pour voir les paroles
+                    </p>
+                    {showCorrectMessage && (
+                      <div className={["success-pop mt-4 inline-flex rounded-full border px-3 py-1.5 text-xs font-black", isLight ? "border-green-300 bg-green-50 text-green-700" : "border-green-400/30 bg-green-500/10 text-green-300"].join(" ")}>
+                        {t.game.correctAnswer} · {formatMoney(currentMoney)}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -624,6 +755,15 @@ export default function Game() {
         isBreaking={isLadderBreaking}
         isLight={isLight}
         t={t}
+      />
+
+      {/* Hidden audio element — always mounted so the ref persists */}
+      <audio
+        ref={audioRef}
+        onEnded={() => setAudioPlaying(false)}
+        onPause={() => setAudioPlaying(false)}
+        onPlay={() => setAudioPlaying(true)}
+        className="hidden"
       />
     </div>
   );
