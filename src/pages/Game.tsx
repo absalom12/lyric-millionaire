@@ -26,41 +26,6 @@ function formatMoney(value: number): string {
   }).format(value);
 }
 
-// ── Coin burst particles ──────────────────────────────────────────────────────
-const COIN_DATA = [
-  { tx: -110, rot: -200, delay: 0,    emoji: '🪙' },
-  { tx:  -65, rot:  150, delay: 0.04, emoji: '💰' },
-  { tx:  -25, rot: -120, delay: 0.08, emoji: '🪙' },
-  { tx:   15, rot:  220, delay: 0.02, emoji: '💵' },
-  { tx:   55, rot: -170, delay: 0.06, emoji: '🪙' },
-  { tx:   95, rot:  130, delay: 0.10, emoji: '💰' },
-  { tx: -145, rot:  300, delay: 0.12, emoji: '💶' },
-  { tx:  130, rot: -280, delay: 0.05, emoji: '🪙' },
-  { tx:   35, rot:  180, delay: 0.09, emoji: '💵' },
-  { tx:  -80, rot: -240, delay: 0.03, emoji: '🪙' },
-];
-
-function CoinBurst({ show, burstKey }: { show: boolean; burstKey: number }) {
-  if (!show) return null;
-  return (
-    <div
-      key={burstKey}
-      className="pointer-events-none fixed z-50"
-      style={{ bottom: '30%', left: '50%', transform: 'translateX(-50%)' }}
-    >
-      {COIN_DATA.map((c, i) => (
-        <div
-          key={i}
-          className="coin-particle"
-          style={{ '--tx': `${c.tx}px`, '--rot': `${c.rot}deg`, animationDelay: `${c.delay}s` } as React.CSSProperties}
-        >
-          {c.emoji}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // ── Money Ladder (compact sidebar on mobile = bottom drawer toggle) ──────────
 function MiniLadder({
   currentIndex,
@@ -255,13 +220,9 @@ export default function Game() {
   const answeringRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  // New animation state
   const [shakingAnswers, setShakingAnswers] = useState(false);
-  const [showCoins, setShowCoins] = useState(false);
-  const [coinBurstKey, setCoinBurstKey] = useState(0);
   const [showRedFlash, setShowRedFlash] = useState(false);
   const [showGreenFlash, setShowGreenFlash] = useState(false);
-  const [correctAnswerId, setCorrectAnswerId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!runId) return;
@@ -359,11 +320,7 @@ export default function Game() {
 
     // Correct answer animations
     setShowGreenFlash(true);
-    setCorrectAnswerId(songId);
     setTimeout(() => setShowGreenFlash(false), 650);
-    setCoinBurstKey((k) => k + 1);
-    setShowCoins(true);
-    setTimeout(() => setShowCoins(false), 1300);
 
     setShowCorrectMessage(true);
     setCelebrateIndex(run.currentQuestionIndex);
@@ -400,7 +357,6 @@ export default function Game() {
         setAnswering(false);
         setCelebrateIndex(null);
         setShowCorrectMessage(false);
-        setCorrectAnswerId(null);
         setTimerEnabled(true);
       }
     }, 1500);
@@ -472,32 +428,9 @@ export default function Game() {
   return (
     <div className={`relative h-[100dvh] overflow-hidden flex flex-col ${pageBg}`}>
 
-      {/* ── Ambient floating background symbols ── */}
-      <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden select-none">
-        {[
-          { sym: '🎵', left: '8%',  top: '18%', dur: '12s', rs: '-8deg', re: '6deg',  op: 0.05 },
-          { sym: '🎵', left: '88%', top: '12%', dur: '9s',  rs: '5deg',  re: '-7deg', op: 0.05 },
-          { sym: '🪙', left: '22%', top: '72%', dur: '14s', rs: '-5deg', re: '9deg',  op: 0.05 },
-          { sym: '💵', left: '75%', top: '65%', dur: '11s', rs: '7deg',  re: '-4deg', op: 0.04 },
-          { sym: '🎶', left: '50%', top: '40%', dur: '16s', rs: '-3deg', re: '5deg',  op: 0.04 },
-          { sym: '🪙', left: '38%', top: '85%', dur: '10s', rs: '4deg',  re: '-8deg', op: 0.04 },
-        ].map((s, i) => (
-          <div
-            key={i}
-            className="absolute text-4xl ambient-float"
-            style={{ left: s.left, top: s.top, '--dur': s.dur, '--rs': s.rs, '--re': s.re, '--op': s.op, animationDelay: `${i * 1.8}s` } as React.CSSProperties}
-          >
-            {s.sym}
-          </div>
-        ))}
-      </div>
-
       {/* ── Screen flash overlays ── */}
       {showRedFlash   && <div className="pointer-events-none fixed inset-0 z-40 bg-red-600   flash-red"   />}
       {showGreenFlash && <div className="pointer-events-none fixed inset-0 z-40 bg-green-500 flash-green" />}
-
-      {/* ── Coin burst ── */}
-      <CoinBurst show={showCoins} burstKey={coinBurstKey} />
 
       {/* ── Header ── */}
       <header className="relative z-10 shrink-0 flex items-center justify-between gap-3 px-4 pt-3 pb-2 lg:px-8 lg:pt-5">
