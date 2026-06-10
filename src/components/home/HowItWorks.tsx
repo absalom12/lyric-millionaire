@@ -6,7 +6,7 @@ export default function HowItWorks({ t, isLight }: { t: TranslationDictionary; i
   const steps = [
     ["1", "Read", t.home.badgeLyrics],
     ["2", "Choose", t.home.badgeChoices],
-    ["3", "Survive", t.home.badgeJokers],
+    ["3", "Climb", t.home.badgeScore],
     ["4", "Cash out", t.home.badgeScore],
   ];
 

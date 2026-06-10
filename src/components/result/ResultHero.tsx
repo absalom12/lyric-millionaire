@@ -19,9 +19,10 @@ type ResultHeroProps = {
   result: ResultStatusView;
   moneyReached: number;
   stats: RunStats;
-  jokersUsed: number;
   modeLabel: string;
   modeValue: string;
+  contentLabel: string;
+  contentValue: string;
   duration: string;
   funnyComment: string;
   isLight: boolean;
@@ -60,10 +61,11 @@ export default function ResultHero({
   result,
   moneyReached,
   stats,
-  jokersUsed,
   duration,
   modeLabel,
   modeValue,
+  contentLabel,
+  contentValue,
   funnyComment,
   isLight,
   t,
@@ -129,10 +131,11 @@ export default function ResultHero({
 
       <ResultStats
         stats={stats}
-        jokersUsed={jokersUsed}
         duration={duration}
         modeLabel={modeLabel}
         modeValue={modeValue}
+        contentLabel={contentLabel}
+        contentValue={contentValue}
         isLight={isLight}
         t={t}
       />

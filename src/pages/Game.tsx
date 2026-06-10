@@ -200,62 +200,6 @@ function DesktopLadder({
   );
 }
 
-// ── Joker row (compact) ───────────────────────────────────────────────────────
-function JokerBar({
-  left,
-  used,
-  disabled,
-  releaseYear,
-  onUse,
-  isLight,
-  t,
-}: {
-  left: number;
-  used?: boolean;
-  disabled: boolean;
-  releaseYear?: number;
-  onUse: () => void;
-  isLight: boolean;
-  t: TranslationDictionary;
-}) {
-  return (
-    <div className={[
-      "flex items-center justify-between gap-3 rounded-2xl border px-4 py-3",
-      isLight ? "border-orange-200 bg-white/80" : "border-white/10 bg-gray-950/70",
-    ].join(" ")}>
-      <div className="flex items-center gap-2 min-w-0">
-        <span className="text-lg shrink-0">🕵️</span>
-        <div className="min-w-0">
-          <p className={["text-[11px] font-black uppercase tracking-[0.18em] truncate", isLight ? "text-orange-700" : "text-yellow-400"].join(" ")}>
-            {t.game.jokerTitle}
-          </p>
-          <p className={["text-xs truncate", isLight ? "text-slate-500" : "text-gray-400"].join(" ")}>
-            {t.game.jokerDescription}
-          </p>
-        </div>
-      </div>
-
-      {used && releaseYear ? (
-        <div className={["rounded-xl border px-4 py-2 text-center shrink-0", isLight ? "border-orange-200 bg-orange-50 text-orange-700" : "border-yellow-400/30 bg-yellow-400/10 text-yellow-300"].join(" ")}>
-          <p className="text-[9px] font-black uppercase tracking-widest opacity-70">{t.game.revealed}</p>
-          <p className="text-xl font-black leading-none mt-0.5">{releaseYear}</p>
-        </div>
-      ) : (
-        <button
-          onClick={onUse}
-          disabled={disabled}
-          className={[
-            "shrink-0 rounded-xl px-4 py-2 text-xs font-black transition active:scale-[0.97] disabled:opacity-40",
-            isLight ? "bg-orange-500 text-white hover:bg-orange-400" : "bg-yellow-400 text-black hover:bg-yellow-300",
-          ].join(" ")}
-        >
-          {t.game.useJoker} · {left}
-        </button>
-      )}
-    </div>
-  );
-}
-
 // ── Main component ────────────────────────────────────────────────────────────
 export default function Game() {
   const { runId } = useParams<{ runId: string }>();
@@ -415,28 +359,6 @@ export default function Game() {
     onExpire: handleTimerExpire,
   });
 
-  const handleJoker = async () => {
-    if (!run || !question) return;
-    if (run.jokerYearLeft <= 0 || question.usedJokerYear || question.selectedSongId) return;
-
-    Sounds.joker();
-
-    const updatedQuestions = run.questions.map((q, i) =>
-      i === run.currentQuestionIndex ? { ...q, usedJokerYear: true } : q
-    );
-    const updatedRun: GameRun & { id: string } = {
-      ...run,
-      jokerYearLeft: run.jokerYearLeft - 1,
-      jokerYearUsed: run.jokerYearUsed + 1,
-      questions: updatedQuestions,
-    };
-    setRun(updatedRun);
-    await updateDocument("gameRuns", run.id, {
-      jokerYearLeft: run.jokerYearLeft - 1,
-      jokerYearUsed: run.jokerYearUsed + 1,
-      questions: updatedQuestions,
-    });
-  };
 
   const getAnswerStyle = (songId: string) => {
     if (!question?.selectedSongId) {
@@ -570,18 +492,6 @@ export default function Game() {
             </div>
           )}
 
-          {/* Joker bar */}
-          <div className="shrink-0">
-            <JokerBar
-              left={run.jokerYearLeft}
-              used={question.usedJokerYear}
-              disabled={run.jokerYearLeft <= 0 || !!question.selectedSongId || !!question.usedJokerYear}
-              releaseYear={question.releaseYear}
-              onUse={handleJoker}
-              isLight={isLight}
-              t={t}
-            />
-          </div>
 
           {/* Main card — lyrics or blindtest */}
           <div

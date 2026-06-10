@@ -5,8 +5,8 @@ export default function HomeStats({ t, isLight }: { t: TranslationDictionary; is
   const stats = [
     ["🎵", t.home.badgeLyrics],
     ["🎯", t.home.badgeChoices],
-    ["🃏", t.home.badgeJokers],
     ["💸", t.home.badgeScore],
+    ["🏆", t.common.musicQuiz],
   ];
 
   return (

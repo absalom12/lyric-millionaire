@@ -30,7 +30,6 @@ type DailyMetric = {
   completed: number;
   stopped: number;
   averageTimeMs: number;
-  averageJokersUsed: number;
   shareClicks: number;
 };
 
@@ -528,11 +527,6 @@ export default function AdminDashboard() {
         0
       );
 
-      const totalJokersUsed = completedRuns.reduce(
-        (sum, run) => sum + (run.jokerYearUsed ?? 0),
-        0
-      );
-
       const shareClicks = runsForDay.reduce(
         (sum, run) => sum + getShareClicks(run),
         0
@@ -545,9 +539,6 @@ export default function AdminDashboard() {
         completed: completedRuns.length,
         stopped: stoppedRuns.length,
         averageTimeMs: runsWithTime.length ? totalTimeMs / runsWithTime.length : 0,
-        averageJokersUsed: completedRuns.length
-          ? totalJokersUsed / completedRuns.length
-          : 0,
         shareClicks,
       };
     });
@@ -591,15 +582,6 @@ export default function AdminDashboard() {
       ? totalTimeMs / runsWithTime.length
       : 0;
 
-    const totalJokersUsed = completedRuns.reduce(
-      (sum, run) => sum + (run.jokerYearUsed ?? 0),
-      0
-    );
-
-    const averageJokersUsed = completedRuns.length
-      ? totalJokersUsed / completedRuns.length
-      : 0;
-
     const totalShareClicks = filteredRuns.reduce(
       (sum, run) => sum + getShareClicks(run),
       0
@@ -613,7 +595,6 @@ export default function AdminDashboard() {
       averageAccuracy,
       completionRate,
       averageTimeMs,
-      averageJokersUsed,
       attemptedQuestions: attemptedQuestions.length,
       correctAnswers,
       totalShareClicks,
@@ -812,7 +793,7 @@ export default function AdminDashboard() {
           </h2>
 
           <p className="text-gray-500 text-sm mt-2 max-w-2xl">
-            Suivi visuel des parties, de la complétion, du temps de jeu, des jokers et des premiers signaux de partage.
+            Suivi visuel des parties, de la complétion, du temps de jeu et des premiers signaux de partage.
           </p>
         </div>
 
@@ -963,12 +944,6 @@ export default function AdminDashboard() {
             value={formatDuration(gameplayStats.averageTimeMs)}
             hint="Sur les parties terminées"
           />
-
-          <StatCard
-            label="Jokers moyens"
-            value={gameplayStats.averageJokersUsed.toFixed(1)}
-            hint="Joker année utilisé par partie"
-          />
         </div>
       </section>
 
@@ -985,13 +960,6 @@ export default function AdminDashboard() {
           data={dailyMetrics}
           valueKey="averageTimeMs"
           formatter={formatDuration}
-        />
-
-        <LineChart
-          title="Jokers moyens utilisés par jour"
-          data={dailyMetrics}
-          valueKey="averageJokersUsed"
-          formatter={(value) => value.toFixed(1)}
         />
 
         <LineChart
@@ -1387,7 +1355,6 @@ export default function AdminDashboard() {
                 <th className="px-4 py-4 text-left">Mode</th>
                 <th className="px-4 py-4 text-left">Statut</th>
                 <th className="px-4 py-4 text-left">Score</th>
-                <th className="px-4 py-4 text-left">Jokers</th>
                 <th className="px-4 py-4 text-left">Partages</th>
                 <th className="px-4 py-4 text-left">Date</th>
               </tr>
@@ -1396,7 +1363,7 @@ export default function AdminDashboard() {
             <tbody>
               {latestRuns.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
                     Aucune partie créée pour le moment.
                   </td>
                 </tr>
@@ -1430,10 +1397,6 @@ export default function AdminDashboard() {
 
                   <td className="px-4 py-4 font-bold text-white">
                     {run.score ?? 0}
-                  </td>
-
-                  <td className="px-4 py-4">
-                    {run.jokerYearUsed ?? 0}
                   </td>
 
                   <td className="px-4 py-4">

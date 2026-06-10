@@ -5,45 +5,34 @@ export type RunStats = {
   correct: number;
   total: number;
   pct: number;
-  averageDifficulty: number;
-  totalStreams: number;
-  averageStreams: number;
 };
 
 type ResultStatsProps = {
   stats: RunStats;
-  jokersUsed: number;
   duration: string;
   modeLabel: string;
   modeValue: string;
+  contentLabel: string;
+  contentValue: string;
   isLight: boolean;
   t: TranslationDictionary;
 };
 
-function formatAverageDifficulty(value: number) {
-  if (!value) return "—";
-  return `${value.toFixed(1)}/5`;
-}
-
 export default function ResultStats({
-  stats,
-  jokersUsed,
+  stats: _stats,
   duration,
   modeLabel,
   modeValue,
+  contentLabel,
+  contentValue,
   isLight,
   t,
 }: ResultStatsProps) {
   return (
-    <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <StatCard label={t.result.jokers} value={jokersUsed} isLight={isLight} />
+    <div className="mt-5 grid grid-cols-3 gap-3">
       <StatCard label={t.result.time} value={duration} isLight={isLight} />
       <StatCard label={modeLabel} value={modeValue} isLight={isLight} />
-      <StatCard
-        label={t.result.avgDifficulty}
-        value={formatAverageDifficulty(stats.averageDifficulty)}
-        isLight={isLight}
-      />
+      <StatCard label={contentLabel} value={contentValue} isLight={isLight} />
     </div>
   );
 }

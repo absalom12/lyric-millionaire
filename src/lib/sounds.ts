@@ -48,13 +48,6 @@ export const Sounds = {
     playTone(180, "sine", 0.3, 0.2, 0);
   },
 
-  joker() {
-    // Petite montée magique
-    playTone(400, "sine", 0.08, 0.15, 0);
-    playTone(600, "sine", 0.08, 0.15, 0.08);
-    playTone(800, "sine", 0.12, 0.2, 0.16);
-  },
-
   tick() {
     // Tick discret pour les 5 dernières secondes
     playTone(1000, "square", 0.03, 0.08, 0);

@@ -416,8 +416,6 @@ export async function generateGameRun(
     score: 0,
     currentQuestionIndex: 0,
 
-    jokerYearLeft: 3,
-    jokerYearUsed: 0,
 
     questions: questions.slice(0, 10),
     startedAt: serverTimestamp() as any,

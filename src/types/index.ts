@@ -95,7 +95,6 @@ export interface GameQuestion {
   answers: QuestionAnswer[];
   selectedSongId?: string;
   isCorrect?: boolean;
-  usedJokerYear?: boolean;
 }
 
 export type GameStatus = "in_progress" | "won" | "lost";
@@ -106,8 +105,6 @@ export interface GameRun {
   status: GameStatus;
   score: number;
   currentQuestionIndex: number;
-  jokerYearLeft: number;
-  jokerYearUsed: number;
   questions: GameQuestion[];
   startedAt: Timestamp;
   endedAt?: Timestamp;

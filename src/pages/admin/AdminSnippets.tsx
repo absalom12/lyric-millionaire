@@ -565,30 +565,28 @@ Cette action est irréversible.`
 
     try {
       const songsSnap = await getDocs(collection(db, "songs"));
-      const missing = songsSnap.docs.filter((d) => !d.data().previewUrl);
-      const total = missing.length;
+      const allSongs = songsSnap.docs;
+      const total = allSongs.length;
       let found = 0;
 
-      for (let i = 0; i < missing.length; i++) {
-        const songDoc = missing[i];
+      for (let i = 0; i < allSongs.length; i++) {
+        const songDoc = allSongs[i];
         const data = songDoc.data();
         setEnrichProgress({ done: i + 1, total });
 
         const previewUrl = await fetchItunesPreview(data.title, data.artistName);
-        if (previewUrl) {
-          await updateDocument("songs", songDoc.id, {
-            previewUrl,
-            updatedAt: serverTimestamp(),
-          });
-          found++;
-        }
+        await updateDocument("songs", songDoc.id, {
+          previewUrl: previewUrl ?? null,
+          updatedAt: serverTimestamp(),
+        });
+        if (previewUrl) found++;
 
-        if (i < missing.length - 1) {
+        if (i < allSongs.length - 1) {
           await new Promise((r) => setTimeout(r, 300));
         }
       }
 
-      setReport(`Previews : ${found}/${total} chansons enrichies.`);
+      setReport(`Previews : ${found}/${total} chansons trouvées et mises à jour.`);
     } catch (err) {
       setErrors([`Erreur enrichissement previews : ${String(err)}`]);
     } finally {
