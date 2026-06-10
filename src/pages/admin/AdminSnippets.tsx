@@ -506,7 +506,7 @@ export default function AdminSnippets() {
                 snippetType: (editForm.snippetType || "other") as import("../../types").SnippetType,
                 containsTitle: editForm.containsTitle,
                 isApproved: finalIsApproved,
-                licenseStatus: finalLicenseStatus,
+                licenseStatus: finalLicenseStatus as import("../../types").LicenseStatus,
                 isGlobalHit: editForm.isGlobalHit,
               }
             : s
