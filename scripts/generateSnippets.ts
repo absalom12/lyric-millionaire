@@ -188,9 +188,9 @@ function extractSnippets(lyrics: string, songTitle: string) {
   };
 
   return [
-    makeSnippet(easyIdx,   randInt(1, 3)),
-    makeSnippet(mediumIdx, randInt(4, 6)),
-    makeSnippet(hardIdx,   randInt(7, 9)),
+    makeSnippet(easyIdx,   randInt(1, 2)),
+    makeSnippet(mediumIdx, randInt(3, 4)),
+    makeSnippet(hardIdx,   5),
   ];
 }
 
