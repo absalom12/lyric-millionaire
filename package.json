@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "snippets": "tsx scripts/generateSnippets.ts"
+    "snippets": "tsx script_snippets/generateSnippets.ts"
   },
   "dependencies": {
     "firebase": "^12.14.0",
