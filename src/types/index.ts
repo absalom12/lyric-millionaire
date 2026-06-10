@@ -30,6 +30,7 @@ export interface Song {
   spotifyPopularity?: number;
   spotifyStreams?: number;
   isGlobalHit: boolean;
+  isRapFr?: boolean;
   isActive: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -54,7 +55,7 @@ export interface Snippet {
   updatedAt: Timestamp;
 }
 
-export type GameModeSlug = "global-hits" | "artist-of-the-day";
+export type GameModeSlug = "global-hits" | "artist-of-the-day" | "rap-fr";
 
 export interface GameMode {
   id?: string;

@@ -684,12 +684,6 @@ export default function Game() {
             ))}
           </div>
 
-          {/* Secured amount (mobile only) */}
-          {securedMoney > 0 && (
-            <div className={["lg:hidden shrink-0 text-center text-xs font-bold pb-1", isLight ? "text-orange-400" : "text-gray-600"].join(" ")}>
-              Acquis : {formatMoney(securedMoney)}
-            </div>
-          )}
         </div>
 
         {/* Right: desktop ladder */}

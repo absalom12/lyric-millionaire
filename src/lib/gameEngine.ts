@@ -260,7 +260,7 @@ function buildSnippetPool(
   const preferredUnique = buildBalancedUniqueSelection(snippets);
   const preferredIds = new Set(preferredUnique.map((snippet) => snippet.id));
 
-  if (modeSlug === "global-hits") {
+  if (modeSlug === "global-hits" || modeSlug === "rap-fr") {
     return preferredUnique;
   }
 
@@ -300,6 +300,9 @@ export async function generateGameRun(
   const globalHitSongIds = new Set(
     activeSongs.filter((song) => song.isGlobalHit).map((song) => song.id)
   );
+  const rapFrSongIds = new Set(
+    activeSongs.filter((song) => song.isRapFr).map((song) => song.id)
+  );
 
   if (modeSlug === "artist-of-the-day" && !resolvedArtistName && resolvedArtistId) {
     const matchingSong = activeSongs.find((song) => song.artistId === resolvedArtistId);
@@ -311,10 +314,8 @@ export async function generateGameRun(
   }
 
   const candidateSongs = activeSongs.filter((song) => {
-    if (modeSlug === "global-hits") {
-      return globalHitSongIds.has(song.id);
-    }
-
+    if (modeSlug === "global-hits") return globalHitSongIds.has(song.id);
+    if (modeSlug === "rap-fr") return rapFrSongIds.has(song.id);
     return matchesArtist(song, resolvedArtistId, resolvedArtistName);
   });
 
@@ -322,6 +323,8 @@ export async function generateGameRun(
     throw new Error(
       modeSlug === "artist-of-the-day"
         ? `Pas assez de chansons actives pour cet artiste. Trouvé: ${candidateSongs.length}/4.`
+        : modeSlug === "rap-fr"
+        ? `Pas assez de chansons Rap FR actives. Trouvé: ${candidateSongs.length}/4. Marque des chansons comme isRapFr dans l'admin.`
         : `Pas assez de chansons Global Hits actives. Trouvé: ${candidateSongs.length}/4.`
     );
   }
@@ -341,9 +344,8 @@ export async function generateGameRun(
     // Blindtest requires an audio preview
     if (isBlindtest && !song.previewUrl) return false;
 
-    if (modeSlug === "global-hits") {
-      return globalHitSongIds.has(snippet.songId);
-    }
+    if (modeSlug === "global-hits") return globalHitSongIds.has(snippet.songId);
+    if (modeSlug === "rap-fr") return rapFrSongIds.has(snippet.songId);
 
     return (
       matchesArtist(snippet, resolvedArtistId, resolvedArtistName) ||
@@ -353,11 +355,12 @@ export async function generateGameRun(
 
   const uniqueSongIds = new Set(validSnippets.map((snippet) => snippet.songId));
 
-  if (modeSlug === "global-hits" && uniqueSongIds.size < 10) {
+  if ((modeSlug === "global-hits" || modeSlug === "rap-fr") && uniqueSongIds.size < 10) {
+    const label = modeSlug === "rap-fr" ? "Rap FR" : "Global Hits";
     throw new Error(
       isBlindtest
-        ? `Pas assez de chansons Global Hits avec un extrait audio pour le blindtest. Trouvé: ${uniqueSongIds.size}/10. Lance l'enrichissement des previews dans l'admin.`
-        : `Pas assez de chansons Global Hits uniques pour générer une partie complète. Trouvé: ${uniqueSongIds.size}/10.`
+        ? `Pas assez de chansons ${label} avec un extrait audio pour le blindtest. Trouvé: ${uniqueSongIds.size}/10. Lance l'enrichissement des previews dans l'admin.`
+        : `Pas assez de chansons ${label} uniques pour générer une partie complète. Trouvé: ${uniqueSongIds.size}/10.`
     );
   }
 
