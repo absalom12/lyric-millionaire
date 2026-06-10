@@ -326,6 +326,8 @@ export async function generateGameRun(
     );
   }
 
+  const isBlindtest = analytics?.playMode === "blindtest";
+
   const validSnippets = approvedSnippets.filter((snippet) => {
     if (!snippet.isApproved) return false;
     if (snippet.licenseStatus === "removed") return false;
@@ -335,6 +337,9 @@ export async function generateGameRun(
     const song = songMap.get(snippet.songId);
 
     if (!song) return false;
+
+    // Blindtest requires an audio preview
+    if (isBlindtest && !song.previewUrl) return false;
 
     if (modeSlug === "global-hits") {
       return globalHitSongIds.has(snippet.songId);
@@ -350,13 +355,17 @@ export async function generateGameRun(
 
   if (modeSlug === "global-hits" && uniqueSongIds.size < 10) {
     throw new Error(
-      `Pas assez de chansons Global Hits uniques pour générer une partie complète. Trouvé: ${uniqueSongIds.size}/10.`
+      isBlindtest
+        ? `Pas assez de chansons Global Hits avec un extrait audio pour le blindtest. Trouvé: ${uniqueSongIds.size}/10. Lance l'enrichissement des previews dans l'admin.`
+        : `Pas assez de chansons Global Hits uniques pour générer une partie complète. Trouvé: ${uniqueSongIds.size}/10.`
     );
   }
 
   if (modeSlug === "artist-of-the-day" && validSnippets.length < 10) {
     throw new Error(
-      `Pas assez de snippets approuvés pour cet artiste. Trouvé: ${validSnippets.length}/10.`
+      isBlindtest
+        ? `Pas assez de snippets avec un extrait audio pour le blindtest de cet artiste. Trouvé: ${validSnippets.length}/10. Lance l'enrichissement des previews dans l'admin.`
+        : `Pas assez de snippets approuvés pour cet artiste. Trouvé: ${validSnippets.length}/10.`
     );
   }
 

@@ -913,6 +913,40 @@ export default function AdminSnippets() {
         )}
       </div>
 
+      {/* Audio previews — visible car nécessaire pour le blindtest */}
+      <div className="bg-gray-950/70 border border-white/10 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center gap-4">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-black text-white">Previews audio (blindtest)</p>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Le mode blindtest nécessite un extrait audio par chanson. Enrichit via iTunes.
+          </p>
+          {enrichProgress && (
+            <div className="mt-2">
+              <p className="text-xs text-gray-400">
+                {enrichProgress.done}/{enrichProgress.total} chansons traitées…
+              </p>
+              <div className="mt-1 h-1 rounded-full bg-white/10 overflow-hidden">
+                <div
+                  className="h-full bg-yellow-400 transition-all"
+                  style={{ width: `${(enrichProgress.done / enrichProgress.total) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+        <button
+          onClick={handleEnrichPreviews}
+          disabled={enrichLoading}
+          className="shrink-0 bg-white/[0.04] text-gray-200 border border-white/10 font-bold rounded-xl px-4 py-2.5 text-xs hover:bg-white/[0.08] disabled:opacity-50 transition whitespace-nowrap"
+        >
+          {enrichLoading
+            ? enrichProgress
+              ? `${enrichProgress.done}/${enrichProgress.total}…`
+              : "Chargement…"
+            : "Enrichir les previews"}
+        </button>
+      </div>
+
       {/* Feedback */}
       {report && (
         <div className="bg-green-500/15 border border-green-500/40 text-green-300 text-sm rounded-2xl p-4">
@@ -1317,32 +1351,6 @@ export default function AdminSnippets() {
             </button>
           </div>
 
-          {/* Audio previews */}
-          <div className="bg-gray-950/70 border border-white/10 rounded-3xl p-5 shadow-xl shadow-black/20 flex flex-col gap-4">
-            <div>
-              <h3 className="text-xl font-black text-white tracking-tight">Previews audio</h3>
-              <p className="text-gray-500 text-sm mt-1">
-                Enrichit automatiquement les chansons sans preview via l'API iTunes.
-              </p>
-            </div>
-            {enrichProgress && (
-              <div className="bg-black/30 border border-white/10 rounded-2xl p-4">
-                <p className="text-gray-400 text-sm">Recherche en cours… {enrichProgress.done}/{enrichProgress.total}</p>
-                <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden">
-                  <div className="h-full bg-yellow-400 transition-all" style={{ width: `${(enrichProgress.done / enrichProgress.total) * 100}%` }} />
-                </div>
-              </div>
-            )}
-            <button
-              onClick={handleEnrichPreviews}
-              disabled={enrichLoading}
-              className="bg-white/[0.04] text-gray-200 border border-white/10 font-bold rounded-2xl py-3 text-sm hover:bg-white/[0.08] disabled:opacity-50 transition"
-            >
-              {enrichLoading
-                ? enrichProgress ? `Enrichissement… (${enrichProgress.done}/${enrichProgress.total})` : "Chargement…"
-                : "Récupérer les previews manquantes"}
-            </button>
-          </div>
         </div>
       </details>
 
