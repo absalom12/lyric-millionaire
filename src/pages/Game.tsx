@@ -475,12 +475,12 @@ export default function Game() {
       {/* ── Ambient floating background symbols ── */}
       <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden select-none">
         {[
-          { sym: '💰', left: '8%',  top: '18%', dur: '12s', rs: '-8deg', re: '6deg',  op: 0.06 },
+          { sym: '🎵', left: '8%',  top: '18%', dur: '12s', rs: '-8deg', re: '6deg',  op: 0.05 },
           { sym: '🎵', left: '88%', top: '12%', dur: '9s',  rs: '5deg',  re: '-7deg', op: 0.05 },
-          { sym: '🪙', left: '22%', top: '72%', dur: '14s', rs: '-5deg', re: '9deg',  op: 0.06 },
+          { sym: '🪙', left: '22%', top: '72%', dur: '14s', rs: '-5deg', re: '9deg',  op: 0.05 },
           { sym: '💵', left: '75%', top: '65%', dur: '11s', rs: '7deg',  re: '-4deg', op: 0.04 },
           { sym: '🎶', left: '50%', top: '40%', dur: '16s', rs: '-3deg', re: '5deg',  op: 0.04 },
-          { sym: '💰', left: '38%', top: '85%', dur: '10s', rs: '4deg',  re: '-8deg', op: 0.05 },
+          { sym: '🪙', left: '38%', top: '85%', dur: '10s', rs: '4deg',  re: '-8deg', op: 0.04 },
         ].map((s, i) => (
           <div
             key={i}
