@@ -522,7 +522,7 @@ export default function Game() {
               <div className="flex flex-col justify-center h-full">
                 {/* Subtitle hint */}
                 <p className={["text-[11px] font-black uppercase tracking-[0.22em] mb-3", isLight ? "text-orange-400" : "text-yellow-400/60"].join(" ")}>
-                  🎵 {t.game.findTheSong ?? "Trouve la chanson"}
+                  🎵 Trouve la chanson
                 </p>
 
                 <p className={[

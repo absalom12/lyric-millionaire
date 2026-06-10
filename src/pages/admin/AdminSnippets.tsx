@@ -503,7 +503,7 @@ export default function AdminSnippets() {
                 ...s,
                 text: editForm.text.trim(),
                 difficulty: Number(editForm.difficulty),
-                snippetType: editForm.snippetType || "other",
+                snippetType: (editForm.snippetType || "other") as import("../../types").SnippetType,
                 containsTitle: editForm.containsTitle,
                 isApproved: finalIsApproved,
                 licenseStatus: finalLicenseStatus,
