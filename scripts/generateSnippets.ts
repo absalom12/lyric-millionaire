@@ -319,9 +319,8 @@ async function main() {
       songsWithLyrics++;
 
       // Create song document
-      const releaseYear = track.album.release_date
-        ? parseInt(track.album.release_date.slice(0, 4), 10) || null
-        : null;
+      const rawYear = parseInt((track.album.release_date ?? "").slice(0, 4), 10);
+      const releaseYear = Number.isFinite(rawYear) && rawYear > 1900 ? rawYear : null;
 
       const songRef = await db.collection("songs").add({
         title: track.title,
