@@ -55,6 +55,7 @@ export default function Home() {
   const [dailyArtist, setDailyArtist] = useState<DailyArtist | null>(null);
   const [loadingMode, setLoadingMode] = useState<GameModeSlug | null>(null);
   const [error, setError] = useState("");
+  const [playMode, setPlayMode] = useState<"lyrics" | "blindtest">("lyrics");
 
   useEffect(() => {
     const today = getTodayLocalDate();
@@ -137,7 +138,7 @@ export default function Home() {
         return;
       }
 
-      const runId = await generateGameRun(mode, artistId, { language, theme });
+      const runId = await generateGameRun(mode, artistId, { language, theme, playMode });
       navigate(`/game/${runId}`);
     } catch (err) {
       setError(String(err));
@@ -165,6 +166,8 @@ export default function Home() {
           dailyArtist={dailyArtist}
           loadingMode={loadingMode}
           error={error}
+          playMode={playMode}
+          onPlayModeChange={setPlayMode}
           onStartGame={startGame}
         />
       </section>

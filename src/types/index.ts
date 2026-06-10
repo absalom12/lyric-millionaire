@@ -115,6 +115,7 @@ export interface GameRun {
 
   language?: "en" | "fr" | "pt" | "es";
   theme?: "dark" | "light";
+  playMode?: "lyrics" | "blindtest";
   moneyReached?: number;
   completedQuestionCount?: number;
   lostAtQuestionIndex?: number | null;

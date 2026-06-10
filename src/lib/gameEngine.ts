@@ -22,6 +22,7 @@ import { AppTheme } from "../components/ThemeToggle";
 type GameRunAnalyticsOptions = {
   language?: LanguageCode;
   theme?: AppTheme;
+  playMode?: "lyrics" | "blindtest";
 };
 
 type SnippetWithId = Snippet & {
@@ -423,6 +424,7 @@ export async function generateGameRun(
 
     language: analytics?.language ?? "en",
     theme: analytics?.theme ?? "dark",
+    playMode: analytics?.playMode ?? "lyrics",
 
     moneyReached: 0,
     completedQuestionCount: 0,

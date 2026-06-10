@@ -24,6 +24,8 @@ export default function HomeCTA({
   dailyArtist,
   loadingMode,
   error,
+  playMode,
+  onPlayModeChange,
   onStartGame,
 }: {
   t: TranslationDictionary;
@@ -31,6 +33,8 @@ export default function HomeCTA({
   dailyArtist: DailyArtist | null;
   loadingMode: GameModeSlug | null;
   error: string;
+  playMode: "lyrics" | "blindtest";
+  onPlayModeChange: (mode: "lyrics" | "blindtest") => void;
   onStartGame: (mode: GameModeSlug) => void;
 }) {
   const dailyArtistCover = getDailyArtistCover(dailyArtist);
@@ -66,6 +70,34 @@ export default function HomeCTA({
               {t.home.chooseChallenge}
             </h2>
           </div>
+        </div>
+
+        {/* Play mode toggle */}
+        <div className={cn("mb-4 flex items-center gap-1 rounded-2xl border p-1", isLight ? "border-orange-200 bg-orange-50/50" : "border-white/10 bg-white/[0.03]")}>
+          <button
+            onClick={() => onPlayModeChange("lyrics")}
+            disabled={!!loadingMode}
+            className={cn(
+              "flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black transition disabled:opacity-60",
+              playMode === "lyrics"
+                ? isLight ? "bg-orange-500 text-white shadow-md" : "bg-yellow-400 text-black shadow-md shadow-yellow-400/20"
+                : isLight ? "text-slate-500 hover:text-slate-700" : "text-gray-500 hover:text-gray-300"
+            )}
+          >
+            🎵 Paroles
+          </button>
+          <button
+            onClick={() => onPlayModeChange("blindtest")}
+            disabled={!!loadingMode}
+            className={cn(
+              "flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black transition disabled:opacity-60",
+              playMode === "blindtest"
+                ? isLight ? "bg-orange-500 text-white shadow-md" : "bg-yellow-400 text-black shadow-md shadow-yellow-400/20"
+                : isLight ? "text-slate-500 hover:text-slate-700" : "text-gray-500 hover:text-gray-300"
+            )}
+          >
+            🎧 Blindtest
+          </button>
         </div>
 
         <div className="grid gap-4">

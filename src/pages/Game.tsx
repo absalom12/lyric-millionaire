@@ -272,7 +272,6 @@ export default function Game() {
   const [isLadderBreaking, setIsLadderBreaking] = useState(false);
   const [timerEnabled, setTimerEnabled] = useState(false);
   const [ladderOpen, setLadderOpen] = useState(false);
-  const [playMode, setPlayMode] = useState<"lyrics" | "blindtest">("lyrics");
   const [audioPlaying, setAudioPlaying] = useState(false);
   const answeringRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -285,6 +284,10 @@ export default function Game() {
       setTimerEnabled(true);
     });
   }, [runId]);
+
+  const question = run ? (run.questions[run.currentQuestionIndex] as GameQuestionWithMeta) : null;
+  const playMode = (run?.playMode ?? "lyrics") as "lyrics" | "blindtest";
+  const isLastQuestion = run ? run.currentQuestionIndex === run.questions.length - 1 : false;
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -307,9 +310,6 @@ export default function Game() {
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [question?.snippetId, playMode]);
-
-  const question = run ? (run.questions[run.currentQuestionIndex] as GameQuestionWithMeta) : null;
-  const isLastQuestion = run ? run.currentQuestionIndex === run.questions.length - 1 : false;
   const currentMoney = run ? MONEY_LADDER[run.currentQuestionIndex] ?? MONEY_LADDER[MONEY_LADDER.length - 1] : 0;
   const securedMoney = run && run.currentQuestionIndex > 0 ? MONEY_LADDER[run.currentQuestionIndex - 1] : 0;
 
@@ -538,34 +538,6 @@ export default function Game() {
           >
             <MiniLadder currentIndex={run.currentQuestionIndex} isLight={isLight} />
           </button>
-
-          {/* Mode toggle: Lyrics / Blindtest */}
-          <div className={["flex items-center rounded-xl border overflow-hidden text-xs font-black", isLight ? "border-orange-200" : "border-white/15"].join(" ")}>
-            <button
-              onClick={() => setPlayMode("lyrics")}
-              aria-label="Lyrics mode"
-              className={[
-                "px-2.5 py-1.5 transition",
-                playMode === "lyrics"
-                  ? isLight ? "bg-orange-500 text-white" : "bg-yellow-400 text-black"
-                  : isLight ? "text-slate-400 hover:text-slate-600" : "text-gray-500 hover:text-gray-300",
-              ].join(" ")}
-            >
-              🎵
-            </button>
-            <button
-              onClick={() => setPlayMode("blindtest")}
-              aria-label="Blindtest mode"
-              className={[
-                "px-2.5 py-1.5 transition",
-                playMode === "blindtest"
-                  ? isLight ? "bg-orange-500 text-white" : "bg-yellow-400 text-black"
-                  : isLight ? "text-slate-400 hover:text-slate-600" : "text-gray-500 hover:text-gray-300",
-              ].join(" ")}
-            >
-              🎧
-            </button>
-          </div>
 
           <LanguageSelector isLight={isLight} />
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
