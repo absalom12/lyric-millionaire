@@ -75,7 +75,7 @@ function warn(msg: string)    { console.log(`  ⚠  ${msg}`); }
 function fail(msg: string)    { console.log(`  ✗  ${msg}`); }
 
 function progressBar(current: number, total: number): string {
-  const W = 30;
+  const W = 20;
   const filled = total > 0 ? Math.round((current / total) * W) : 0;
   return `[${"█".repeat(filled)}${"░".repeat(W - filled)}] ${current}/${total}`;
 }
@@ -261,7 +261,7 @@ async function main() {
     }
   }
 
-  const randomTracks = shuffleArray(albumTracks).slice(0, 20);
+  const randomTracks = shuffleArray(albumTracks).slice(0, 10);
   ok(`${randomTracks.length} random tracks from ${pickedAlbums.length} albums.`);
 
   const allTracks = [...topTracks, ...randomTracks];
