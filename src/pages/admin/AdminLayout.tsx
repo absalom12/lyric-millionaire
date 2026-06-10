@@ -34,6 +34,12 @@ const navItems: AdminNavItem[] = [
     icon: "⭐",
     description: "Artiste du jour",
   },
+  {
+    label: "Générer",
+    path: "/admin/generate",
+    icon: "🤖",
+    description: "Genius + Claude",
+  },
 ];
 
 export default function AdminLayout() {
