@@ -1,6 +1,24 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Component, type ReactNode } from "react";
 import { LanguageProvider } from "./i18n/LanguageContext";
 import AuthGuard from "./components/AuthGuard";
+
+class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 32, color: "red", background: "#111", minHeight: "100vh" }}>
+          <h2>Erreur de rendu</h2>
+          <pre style={{ whiteSpace: "pre-wrap" }}>{(this.state.error as Error).message}</pre>
+          <pre style={{ whiteSpace: "pre-wrap", fontSize: 12, color: "#aaa" }}>{(this.state.error as Error).stack}</pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // Player pages
 import Home from "./pages/Home";
@@ -18,6 +36,7 @@ import AdminGenerate from "./pages/admin/AdminGenerate";
 
 export default function App() {
   return (
+    <ErrorBoundary>
     <LanguageProvider>
       <BrowserRouter>
         <Routes>
@@ -59,5 +78,6 @@ export default function App() {
         </Routes>
       </BrowserRouter>
     </LanguageProvider>
+    </ErrorBoundary>
   );
 }
