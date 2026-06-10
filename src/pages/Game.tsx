@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getGameRun } from "../lib/gameEngine";
 import { GameQuestion, GameRun } from "../types";
@@ -24,6 +24,41 @@ function formatMoney(value: number): string {
     currency: "EUR",
     maximumFractionDigits: 0,
   }).format(value);
+}
+
+// ── Coin burst particles ──────────────────────────────────────────────────────
+const COIN_DATA = [
+  { tx: -110, rot: -200, delay: 0,    emoji: '🪙' },
+  { tx:  -65, rot:  150, delay: 0.04, emoji: '💰' },
+  { tx:  -25, rot: -120, delay: 0.08, emoji: '🪙' },
+  { tx:   15, rot:  220, delay: 0.02, emoji: '💵' },
+  { tx:   55, rot: -170, delay: 0.06, emoji: '🪙' },
+  { tx:   95, rot:  130, delay: 0.10, emoji: '💰' },
+  { tx: -145, rot:  300, delay: 0.12, emoji: '💶' },
+  { tx:  130, rot: -280, delay: 0.05, emoji: '🪙' },
+  { tx:   35, rot:  180, delay: 0.09, emoji: '💵' },
+  { tx:  -80, rot: -240, delay: 0.03, emoji: '🪙' },
+];
+
+function CoinBurst({ show, burstKey }: { show: boolean; burstKey: number }) {
+  if (!show) return null;
+  return (
+    <div
+      key={burstKey}
+      className="pointer-events-none fixed z-50"
+      style={{ bottom: '30%', left: '50%', transform: 'translateX(-50%)' }}
+    >
+      {COIN_DATA.map((c, i) => (
+        <div
+          key={i}
+          className="coin-particle"
+          style={{ '--tx': `${c.tx}px`, '--rot': `${c.rot}deg`, animationDelay: `${c.delay}s` } as React.CSSProperties}
+        >
+          {c.emoji}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 // ── Money Ladder (compact sidebar on mobile = bottom drawer toggle) ──────────
@@ -220,6 +255,14 @@ export default function Game() {
   const answeringRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement>(null);
 
+  // New animation state
+  const [shakingAnswers, setShakingAnswers] = useState(false);
+  const [showCoins, setShowCoins] = useState(false);
+  const [coinBurstKey, setCoinBurstKey] = useState(0);
+  const [showRedFlash, setShowRedFlash] = useState(false);
+  const [showGreenFlash, setShowGreenFlash] = useState(false);
+  const [correctAnswerId, setCorrectAnswerId] = useState<string | null>(null);
+
   useEffect(() => {
     if (!runId) return;
     getGameRun(runId).then((gameRun) => {
@@ -254,6 +297,7 @@ export default function Game() {
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [question?.snippetId, playMode]);
+
   const currentMoney = run ? MONEY_LADDER[run.currentQuestionIndex] ?? MONEY_LADDER[MONEY_LADDER.length - 1] : 0;
   const securedMoney = run && run.currentQuestionIndex > 0 ? MONEY_LADDER[run.currentQuestionIndex - 1] : 0;
 
@@ -280,6 +324,11 @@ export default function Game() {
     else Sounds.wrong();
 
     if (!isCorrect) {
+      // Wrong answer animations
+      setShowRedFlash(true);
+      setShakingAnswers(true);
+      setTimeout(() => setShowRedFlash(false), 650);
+
       const updatedRun: GameRun & { id: string } = {
         ...run,
         questions: updatedQuestions,
@@ -304,9 +353,17 @@ export default function Game() {
         totalTimeMs: Date.now() - run.startedAt.toMillis(),
       });
 
-      setTimeout(() => navigate(`/result/${run.id}`), 1700);
+      setTimeout(() => navigate(`/result/${run.id}`), 1800);
       return;
     }
+
+    // Correct answer animations
+    setShowGreenFlash(true);
+    setCorrectAnswerId(songId);
+    setTimeout(() => setShowGreenFlash(false), 650);
+    setCoinBurstKey((k) => k + 1);
+    setShowCoins(true);
+    setTimeout(() => setShowCoins(false), 1300);
 
     setShowCorrectMessage(true);
     setCelebrateIndex(run.currentQuestionIndex);
@@ -343,9 +400,10 @@ export default function Game() {
         setAnswering(false);
         setCelebrateIndex(null);
         setShowCorrectMessage(false);
+        setCorrectAnswerId(null);
         setTimerEnabled(true);
       }
-    }, 1400);
+    }, 1500);
   };
 
   const handleTimerExpire = () => {
@@ -359,24 +417,27 @@ export default function Game() {
     onExpire: handleTimerExpire,
   });
 
-
   const getAnswerStyle = (songId: string) => {
-    if (!question?.selectedSongId) {
+    const isSelected = question?.selectedSongId != null;
+    const isCorrect = songId === question?.correctSongId;
+    const isChosen = songId === question?.selectedSongId;
+
+    if (!isSelected) {
       return isLight
-        ? "border-orange-100 bg-white/85 text-slate-900 hover:border-orange-300 hover:bg-orange-50 active:scale-[0.98]"
-        : "border-white/10 bg-white/[0.04] text-white hover:bg-white/[0.08] active:scale-[0.98]";
+        ? "border-orange-100 bg-white/85 text-slate-900 hover:border-orange-300 hover:bg-orange-50 active:scale-95"
+        : "border-white/10 bg-white/[0.04] text-white hover:bg-white/[0.09] active:scale-95";
     }
-    if (songId === question.correctSongId)
+    if (isCorrect)
       return isLight
-        ? "border-green-400 bg-green-50 text-green-800"
-        : "border-green-400/60 bg-green-500/20 text-green-100";
-    if (songId === question.selectedSongId)
+        ? "border-green-400 bg-green-50 text-green-800 answer-correct-bounce"
+        : "border-green-400/70 bg-green-500/20 text-green-100 answer-correct-bounce";
+    if (isChosen && !isCorrect)
       return isLight
         ? "border-red-400 bg-red-50 text-red-800"
         : "border-red-400/60 bg-red-500/20 text-red-100";
     return isLight
-      ? "border-orange-100 bg-white/50 text-slate-300 opacity-50"
-      : "border-white/10 bg-white/[0.02] text-gray-600 opacity-50";
+      ? "border-orange-100 bg-white/40 text-slate-300 opacity-40"
+      : "border-white/[0.06] bg-white/[0.02] text-gray-600 opacity-40";
   };
 
   const pageBg = isLight
@@ -409,11 +470,37 @@ export default function Game() {
   }
 
   return (
-    // ── Full viewport, no scroll on mobile ──────────────────────────────────
-    <div className={`h-[100dvh] overflow-hidden flex flex-col ${pageBg}`}>
+    <div className={`relative h-[100dvh] overflow-hidden flex flex-col ${pageBg}`}>
 
-      {/* ── Header bar ──────────────────────────────────────────────────── */}
-      <header className="shrink-0 flex items-center justify-between gap-3 px-4 pt-3 pb-2 lg:px-8 lg:pt-5">
+      {/* ── Ambient floating background symbols ── */}
+      <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden select-none">
+        {[
+          { sym: '💰', left: '8%',  top: '18%', dur: '12s', rs: '-8deg', re: '6deg',  op: 0.06 },
+          { sym: '🎵', left: '88%', top: '12%', dur: '9s',  rs: '5deg',  re: '-7deg', op: 0.05 },
+          { sym: '🪙', left: '22%', top: '72%', dur: '14s', rs: '-5deg', re: '9deg',  op: 0.06 },
+          { sym: '💵', left: '75%', top: '65%', dur: '11s', rs: '7deg',  re: '-4deg', op: 0.04 },
+          { sym: '🎶', left: '50%', top: '40%', dur: '16s', rs: '-3deg', re: '5deg',  op: 0.04 },
+          { sym: '💰', left: '38%', top: '85%', dur: '10s', rs: '4deg',  re: '-8deg', op: 0.05 },
+        ].map((s, i) => (
+          <div
+            key={i}
+            className="absolute text-4xl ambient-float"
+            style={{ left: s.left, top: s.top, '--dur': s.dur, '--rs': s.rs, '--re': s.re, '--op': s.op, animationDelay: `${i * 1.8}s` } as React.CSSProperties}
+          >
+            {s.sym}
+          </div>
+        ))}
+      </div>
+
+      {/* ── Screen flash overlays ── */}
+      {showRedFlash   && <div className="pointer-events-none fixed inset-0 z-40 bg-red-600   flash-red"   />}
+      {showGreenFlash && <div className="pointer-events-none fixed inset-0 z-40 bg-green-500 flash-green" />}
+
+      {/* ── Coin burst ── */}
+      <CoinBurst show={showCoins} burstKey={coinBurstKey} />
+
+      {/* ── Header ── */}
+      <header className="relative z-10 shrink-0 flex items-center justify-between gap-3 px-4 pt-3 pb-2 lg:px-8 lg:pt-5">
         <button onClick={() => navigate("/")} className="flex items-center gap-2 transition hover:opacity-80">
           <div className="h-9 w-9 shrink-0 overflow-hidden rounded-xl">
             <img src="/logo-mark.png" alt="Lyric Millionaire" className="h-full w-full object-contain" />
@@ -424,66 +511,63 @@ export default function Game() {
           </div>
         </button>
 
-        {/* Progress pill */}
-        <div className={["flex items-center gap-2 rounded-full border px-3 py-1.5", isLight ? "border-orange-200 bg-white/80" : "border-white/10 bg-gray-950/70"].join(" ")}>
-          <span className={["text-xs font-black", isLight ? "text-orange-700" : "text-yellow-400"].join(" ")}>
+        {/* Progress dots */}
+        <div className={["flex items-center gap-2 rounded-full border px-3 py-1.5", isLight ? "border-orange-200 bg-white/80" : "border-white/10 bg-black/40"].join(" ")}>
+          <span className={["text-xs font-black tabular-nums", isLight ? "text-orange-700" : "text-yellow-400"].join(" ")}>
             {run.currentQuestionIndex + 1}
           </span>
           <span className={["text-xs", isLight ? "text-slate-400" : "text-gray-600"].join(" ")}>/</span>
-          <span className={["text-xs font-bold", isLight ? "text-slate-500" : "text-gray-400"].join(" ")}>
-            {run.questions.length}
-          </span>
-          {/* Mini progress dots */}
+          <span className={["text-xs font-bold", isLight ? "text-slate-500" : "text-gray-400"].join(" ")}>{run.questions.length}</span>
           <div className="flex gap-0.5 ml-1">
             {run.questions.map((_, i) => (
-              <div
-                key={i}
-                className={[
-                  "h-1.5 w-1.5 rounded-full transition-all",
-                  i < run.currentQuestionIndex
-                    ? isLight ? "bg-green-500" : "bg-green-400"
-                    : i === run.currentQuestionIndex
-                    ? isLight ? "bg-orange-500" : "bg-yellow-400"
-                    : isLight ? "bg-orange-200" : "bg-white/15",
-                ].join(" ")}
-              />
+              <div key={i} className={["h-1.5 w-1.5 rounded-full transition-all", i < run.currentQuestionIndex ? (isLight ? "bg-green-500" : "bg-green-400") : i === run.currentQuestionIndex ? (isLight ? "bg-orange-500" : "bg-yellow-400") : (isLight ? "bg-orange-200" : "bg-white/15")].join(" ")} />
             ))}
           </div>
         </div>
 
         <div className="flex items-center gap-1.5">
-          {/* Mobile: money pill + ladder toggle */}
+          {/* Mobile ladder toggle */}
           <button
             onClick={() => setLadderOpen(true)}
-            className="lg:hidden"
-            aria-label="Open money ladder"
+            className={["lg:hidden rounded-xl border px-2.5 py-1.5 text-xs font-black transition", isLight ? "border-orange-200 bg-white/80 text-orange-700 hover:bg-orange-50" : "border-white/10 bg-black/40 text-gray-300 hover:bg-white/[0.08]"].join(" ")}
+            aria-label="Échelle"
           >
-            <MiniLadder currentIndex={run.currentQuestionIndex} isLight={isLight} />
+            🏆
           </button>
-
           <LanguageSelector isLight={isLight} />
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
         </div>
       </header>
 
-      {/* ── Timer bar ───────────────────────────────────────────────────── */}
-      <div className="shrink-0 flex items-center gap-2 px-4 lg:px-8">
-        <div className={["relative flex-1 h-1.5 rounded-full overflow-hidden", isLight ? "bg-orange-100" : "bg-white/10"].join(" ")}>
-          <div
-            className={["absolute left-0 top-0 h-full rounded-full transition-colors", isUrgent ? "bg-red-500" : isLight ? "bg-orange-500" : "bg-yellow-400"].join(" ")}
-            style={{ width: `${progress * 100}%`, transition: "width 1s linear" }}
-          />
+      {/* ── Timer + current stake ── */}
+      <div className="relative z-10 shrink-0 flex items-center gap-3 px-4 lg:px-8 py-1.5">
+        {/* Timer bar */}
+        <div className="flex flex-1 items-center gap-2">
+          <div className={["relative flex-1 h-2 rounded-full overflow-hidden", isLight ? "bg-orange-100" : "bg-white/10"].join(" ")}>
+            <div
+              className={["absolute left-0 top-0 h-full rounded-full transition-colors", isUrgent ? "bg-red-500" : isLight ? "bg-orange-500" : "bg-yellow-400"].join(" ")}
+              style={{ width: `${progress * 100}%`, transition: "width 1s linear" }}
+            />
+          </div>
+          <span className={["w-6 text-right text-sm font-black tabular-nums", isUrgent ? "text-red-400" : isLight ? "text-orange-700" : "text-gray-400"].join(" ")}>
+            {timeLeft}
+          </span>
         </div>
-        <span className={["w-5 text-right text-xs font-black tabular-nums", isUrgent ? "text-red-400" : isLight ? "text-orange-700" : "text-gray-400"].join(" ")}>
-          {timeLeft}
-        </span>
+
+        {/* Prominent money stake */}
+        <div
+          key={`money-${run.currentQuestionIndex}`}
+          className={["money-pop shrink-0 font-black tabular-nums text-2xl sm:text-3xl", isLight ? "text-orange-500" : "text-yellow-400"].join(" ")}
+        >
+          {formatMoney(currentMoney)}
+        </div>
       </div>
 
-      {/* ── Body — fills remaining height ───────────────────────────────── */}
-      <div className="flex-1 min-h-0 grid lg:grid-cols-[1fr_340px] xl:grid-cols-[1fr_370px] gap-4 px-4 py-3 lg:px-8 lg:py-5">
+      {/* ── Body ── */}
+      <div className="relative z-10 flex-1 min-h-0 grid lg:grid-cols-[1fr_340px] xl:grid-cols-[1fr_370px] gap-3 px-4 py-2 lg:px-8 lg:py-4">
 
-        {/* ── Left: game content ─────────────────────────────────────────── */}
-        <div className="flex flex-col gap-3 min-h-0">
+        {/* Left: question + answers */}
+        <div className="flex flex-col gap-2.5 min-h-0">
 
           {/* Game-over banner */}
           {gameOverMessage && (
@@ -492,133 +576,123 @@ export default function Game() {
             </div>
           )}
 
-
-          {/* Main card — lyrics or blindtest */}
+          {/* Main question card */}
           <div
             key={`${run.currentQuestionIndex}-${question.snippetId}-${playMode}`}
             className={[
-              "question-enter flex-1 min-h-0 flex flex-col justify-center rounded-[1.6rem] border px-5 py-4 shadow-2xl backdrop-blur-xl overflow-hidden",
-              isLight ? "border-orange-200 bg-white/85 shadow-orange-200/40" : "border-white/10 bg-gray-950/75 shadow-black/40",
+              "question-enter-bouncy flex-1 min-h-0 flex flex-col justify-center rounded-[1.8rem] border px-5 py-5 shadow-2xl backdrop-blur-xl overflow-hidden",
+              isLight ? "border-orange-200 bg-white/88 shadow-orange-200/40" : "border-white/[0.09] bg-gray-950/78 shadow-black/50",
               showCorrectMessage ? "correct-flash" : "",
             ].join(" ")}
           >
             {playMode === "lyrics" ? (
-              <>
+              <div className="flex flex-col justify-center h-full">
+                {/* Subtitle hint */}
+                <p className={["text-[11px] font-black uppercase tracking-[0.22em] mb-3", isLight ? "text-orange-400" : "text-yellow-400/60"].join(" ")}>
+                  🎵 {t.game.findTheSong ?? "Trouve la chanson"}
+                </p>
+
                 <p className={[
                   "font-black leading-snug tracking-tight",
-                  "text-2xl sm:text-3xl lg:text-4xl xl:text-5xl",
+                  "text-xl sm:text-2xl lg:text-3xl",
                   isLight ? "text-slate-950" : "text-white",
                 ].join(" ")}>
                   "{question.snippetText}"
                 </p>
 
                 {showCorrectMessage && (
-                  <div className={["success-pop mt-4 inline-flex self-start rounded-full border px-3 py-1.5 text-xs font-black", isLight ? "border-green-300 bg-green-50 text-green-700" : "border-green-400/30 bg-green-500/10 text-green-300"].join(" ")}>
-                    {t.game.correctAnswer} · {formatMoney(currentMoney)}
+                  <div className={["gained-slide-up mt-5 inline-flex self-start items-center gap-2 rounded-2xl border px-4 py-2 text-sm font-black", isLight ? "border-green-300 bg-green-50 text-green-700" : "border-green-400/40 bg-green-500/15 text-green-300"].join(" ")}>
+                    ✓ {t.game.correctAnswer} · {formatMoney(currentMoney)}
                   </div>
                 )}
-              </>
+              </div>
             ) : (
-              /* ── Blindtest card ─────────────────────────────────────── */
+              /* Blindtest card */
               <div className="flex flex-col items-center justify-center gap-5 h-full">
                 {question.previewUrl ? (
                   <>
-                    {/* Waveform bars */}
-                    <div className="flex items-end gap-1.5 h-16">
-                      {[0.45, 0.75, 1, 0.6, 0.88, 0.5, 0.78, 0.62, 0.95, 0.42, 0.7, 0.55].map((h, i) => (
+                    {/* Waveform */}
+                    <div className="flex items-end gap-1.5 h-20">
+                      {[0.45, 0.75, 1, 0.6, 0.88, 0.5, 0.78, 0.62, 0.95, 0.42, 0.7, 0.55, 0.82, 0.48].map((h, i) => (
                         <div
                           key={i}
-                          className={[
-                            "rounded-full transition-opacity duration-300",
-                            audioPlaying ? "wave-bar" : "",
-                            isLight ? "bg-orange-500" : "bg-yellow-400",
-                          ].join(" ")}
-                          style={{
-                            width: 5,
-                            height: `${h * 48}px`,
-                            opacity: audioPlaying ? 1 : 0.35,
-                            animationDelay: `${i * 0.075}s`,
-                          }}
+                          className={["rounded-full transition-opacity duration-300", audioPlaying ? "wave-bar" : "", isLight ? "bg-orange-500" : "bg-yellow-400"].join(" ")}
+                          style={{ width: 5, height: `${h * 56}px`, opacity: audioPlaying ? 1 : 0.3, animationDelay: `${i * 0.065}s` }}
                         />
                       ))}
                     </div>
 
-                    {/* Play / Pause button */}
+                    {/* Play/Pause */}
                     <button
                       onClick={() => {
                         const audio = audioRef.current;
                         if (!audio) return;
-                        if (audioPlaying) {
-                          audio.pause();
-                        } else {
-                          audio.play().then(() => setAudioPlaying(true)).catch(() => {});
-                        }
+                        if (audioPlaying) { audio.pause(); }
+                        else { audio.play().then(() => setAudioPlaying(true)).catch(() => {}); }
                       }}
                       disabled={!!question.selectedSongId}
                       className={[
-                        "flex items-center gap-2 rounded-2xl px-7 py-3 font-black text-sm transition active:scale-95 disabled:opacity-50",
-                        isLight ? "bg-orange-500 text-white hover:bg-orange-400" : "bg-yellow-400 text-black hover:bg-yellow-300",
+                        "flex items-center gap-3 rounded-2xl px-8 py-4 font-black text-base transition active:scale-95 disabled:opacity-50 shadow-lg",
+                        isLight ? "bg-orange-500 text-white hover:bg-orange-400 shadow-orange-300/40" : "bg-yellow-400 text-black hover:bg-yellow-300 shadow-yellow-400/25",
                       ].join(" ")}
                     >
-                      {audioPlaying ? "⏸ Pause" : "▶ Jouer"}
+                      <span className="text-xl">{audioPlaying ? "⏸" : "▶"}</span>
+                      {audioPlaying ? "Pause" : "Jouer"}
                     </button>
 
                     {showCorrectMessage && (
-                      <div className={["success-pop inline-flex rounded-full border px-3 py-1.5 text-xs font-black", isLight ? "border-green-300 bg-green-50 text-green-700" : "border-green-400/30 bg-green-500/10 text-green-300"].join(" ")}>
-                        {t.game.correctAnswer} · {formatMoney(currentMoney)}
+                      <div className={["gained-slide-up inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm font-black", isLight ? "border-green-300 bg-green-50 text-green-700" : "border-green-400/40 bg-green-500/15 text-green-300"].join(" ")}>
+                        ✓ {t.game.correctAnswer} · {formatMoney(currentMoney)}
                       </div>
                     )}
                   </>
                 ) : (
-                  /* No preview available fallback */
                   <div className="text-center">
                     <p className="text-4xl mb-3">🎧</p>
-                    <p className={["text-sm font-bold", isLight ? "text-slate-400" : "text-gray-500"].join(" ")}>
-                      Aucun extrait disponible
-                    </p>
-                    <p className={["text-xs mt-1", isLight ? "text-slate-300" : "text-gray-600"].join(" ")}>
-                      Passe en mode 🎵 pour voir les paroles
-                    </p>
-                    {showCorrectMessage && (
-                      <div className={["success-pop mt-4 inline-flex rounded-full border px-3 py-1.5 text-xs font-black", isLight ? "border-green-300 bg-green-50 text-green-700" : "border-green-400/30 bg-green-500/10 text-green-300"].join(" ")}>
-                        {t.game.correctAnswer} · {formatMoney(currentMoney)}
-                      </div>
-                    )}
+                    <p className={["text-sm font-bold", isLight ? "text-slate-400" : "text-gray-500"].join(" ")}>Aucun extrait disponible</p>
                   </div>
                 )}
               </div>
             )}
           </div>
 
-          {/* Answer grid — always 2×2, no overflow */}
-          <div className="shrink-0 grid grid-cols-2 gap-2">
+          {/* Answer grid */}
+          <div
+            className={`shrink-0 grid grid-cols-2 gap-2 ${shakingAnswers ? "answers-shake" : ""}`}
+            onAnimationEnd={() => setShakingAnswers(false)}
+          >
             {question.answers.map((answer, index) => (
               <button
                 key={answer.songId}
                 onClick={() => handleAnswer(answer.songId)}
                 disabled={!!question.selectedSongId || answering}
                 className={[
-                  "rounded-2xl border px-3 py-3 text-left shadow-md transition",
+                  "rounded-2xl border px-3 py-3.5 min-h-[72px] text-left shadow-md transition",
                   getAnswerStyle(answer.songId),
                 ].join(" ")}
               >
                 <div className="flex items-center gap-2.5">
-                  <span className={["flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-xs font-black", isLight ? "bg-orange-50 text-orange-700" : "bg-black/35 text-yellow-400"].join(" ")}>
+                  <span className={["flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-black", isLight ? "bg-orange-50 text-orange-700" : "bg-black/40 text-yellow-400"].join(" ")}>
                     {String.fromCharCode(65 + index)}
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-black leading-tight">{answer.title}</p>
-                    <p className={["truncate text-xs mt-0.5", isLight ? "text-slate-500" : "text-gray-400"].join(" ")}>
-                      {answer.artistName}
-                    </p>
+                    <p className={["truncate text-xs mt-0.5", isLight ? "text-slate-500" : "text-gray-400"].join(" ")}>{answer.artistName}</p>
                   </div>
                 </div>
               </button>
             ))}
           </div>
+
+          {/* Secured amount (mobile only) */}
+          {securedMoney > 0 && (
+            <div className={["lg:hidden shrink-0 text-center text-xs font-bold pb-1", isLight ? "text-orange-400" : "text-gray-600"].join(" ")}>
+              Acquis : {formatMoney(securedMoney)}
+            </div>
+          )}
         </div>
 
-        {/* ── Right: desktop ladder ─────────────────────────────────────── */}
+        {/* Right: desktop ladder */}
         <DesktopLadder
           currentIndex={run.currentQuestionIndex}
           celebrateIndex={celebrateIndex}
@@ -628,7 +702,7 @@ export default function Game() {
         />
       </div>
 
-      {/* ── Mobile ladder drawer ─────────────────────────────────────────── */}
+      {/* Mobile ladder drawer */}
       <LadderDrawer
         open={ladderOpen}
         onClose={() => setLadderOpen(false)}
@@ -639,7 +713,7 @@ export default function Game() {
         t={t}
       />
 
-      {/* Hidden audio element — always mounted so the ref persists */}
+      {/* Hidden audio */}
       <audio
         ref={audioRef}
         onEnded={() => setAudioPlaying(false)}

@@ -469,4 +469,84 @@ button:disabled {
     transform-origin: bottom;
     animation: waveBar 0.7s ease-in-out infinite alternate;
   }
+
+  /* ── Game page new animations ─────────────────────────────── */
+
+  /* Money amount pop-in on new question */
+  @keyframes moneyPop {
+    0%   { transform: scale(0.65) translateY(6px); opacity: 0; filter: blur(3px); }
+    65%  { transform: scale(1.1) translateY(-2px);  opacity: 1; filter: blur(0); }
+    100% { transform: scale(1)   translateY(0);     opacity: 1; filter: blur(0); }
+  }
+  .money-pop { animation: moneyPop 0.48s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+  /* Coin burst particles */
+  @keyframes coinFloat {
+    0%   { transform: translate(var(--tx, 0px), 0px) scale(1) rotate(0deg); opacity: 1; }
+    100% { transform: translate(var(--tx, 0px), -170px) scale(0.15) rotate(var(--rot, 180deg)); opacity: 0; }
+  }
+  .coin-particle {
+    position: absolute;
+    font-size: 1.6rem;
+    line-height: 1;
+    animation: coinFloat 1.05s cubic-bezier(0.15, 0.5, 0.4, 1) both;
+    pointer-events: none;
+  }
+
+  /* Wrong answer grid shake */
+  @keyframes shakeX {
+    0%,100% { transform: translateX(0); }
+    14%     { transform: translateX(-10px); }
+    28%     { transform: translateX(9px); }
+    42%     { transform: translateX(-7px); }
+    57%     { transform: translateX(7px); }
+    71%     { transform: translateX(-4px); }
+    85%     { transform: translateX(4px); }
+  }
+  .answers-shake { animation: shakeX 0.55s ease; }
+
+  /* Screen flash overlays */
+  @keyframes flashRed {
+    0%,100% { opacity: 0; }
+    20%     { opacity: 0.22; }
+  }
+  .flash-red { animation: flashRed 0.55s ease forwards; }
+
+  @keyframes flashGreen {
+    0%,100% { opacity: 0; }
+    20%     { opacity: 0.12; }
+  }
+  .flash-green { animation: flashGreen 0.55s ease forwards; }
+
+  /* Improved question enter — bouncy */
+  @keyframes questionEnterBouncy {
+    0%   { opacity: 0; transform: translateY(20px) scale(0.96); }
+    60%  { opacity: 1; transform: translateY(-3px) scale(1.006); }
+    100% { opacity: 1; transform: translateY(0)   scale(1); }
+  }
+  .question-enter-bouncy { animation: questionEnterBouncy 0.44s cubic-bezier(0.34, 1.3, 0.64, 1); }
+
+  /* Ambient floating symbols background */
+  @keyframes ambientFloat {
+    0%,100% { transform: translateY(0)    rotate(var(--rs, -6deg)); opacity: var(--op, 0.05); }
+    50%     { transform: translateY(-28px) rotate(var(--re, 6deg));  opacity: calc(var(--op, 0.05) * 1.6); }
+  }
+  .ambient-float { animation: ambientFloat var(--dur, 11s) ease-in-out infinite; }
+
+  /* Answer correct bounce */
+  @keyframes correctBounce {
+    0%   { transform: scale(1); }
+    35%  { transform: scale(1.05); }
+    65%  { transform: scale(0.98); }
+    100% { transform: scale(1); }
+  }
+  .answer-correct-bounce { animation: correctBounce 0.45s ease; }
+
+  /* Money amount "gained" toast sliding up */
+  @keyframes gainedSlideUp {
+    0%   { opacity: 0; transform: translateY(16px) scale(0.85); }
+    60%  { opacity: 1; transform: translateY(-3px)  scale(1.06); }
+    100% { opacity: 1; transform: translateY(0)     scale(1); }
+  }
+  .gained-slide-up { animation: gainedSlideUp 0.5s cubic-bezier(0.34, 1.4, 0.64, 1) both; }
 }
