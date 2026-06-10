@@ -9,6 +9,7 @@ import {
   serverTimestamp,
 } from "../../lib/firebase";
 import { generateGameRun } from "../../lib/gameEngine";
+import { fetchItunesPreview } from "../../lib/itunesPreview";
 import { Snippet } from "../../types/index";
 
 type AdminSnippet = Snippet & {
@@ -139,6 +140,9 @@ export default function AdminSnippets() {
 
   const [errors, setErrors] = useState<string[]>([]);
   const [report, setReport] = useState<string | null>(null);
+
+  const [enrichLoading, setEnrichLoading] = useState(false);
+  const [enrichProgress, setEnrichProgress] = useState<{ done: number; total: number } | null>(null);
 
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
@@ -553,6 +557,46 @@ Cette action est irréversible.`
     }
   };
 
+  const handleEnrichPreviews = async () => {
+    setEnrichLoading(true);
+    setEnrichProgress(null);
+    setErrors([]);
+    setReport(null);
+
+    try {
+      const songsSnap = await getDocs(collection(db, "songs"));
+      const missing = songsSnap.docs.filter((d) => !d.data().previewUrl);
+      const total = missing.length;
+      let found = 0;
+
+      for (let i = 0; i < missing.length; i++) {
+        const songDoc = missing[i];
+        const data = songDoc.data();
+        setEnrichProgress({ done: i + 1, total });
+
+        const previewUrl = await fetchItunesPreview(data.title, data.artistName);
+        if (previewUrl) {
+          await updateDocument("songs", songDoc.id, {
+            previewUrl,
+            updatedAt: serverTimestamp(),
+          });
+          found++;
+        }
+
+        if (i < missing.length - 1) {
+          await new Promise((r) => setTimeout(r, 300));
+        }
+      }
+
+      setReport(`Previews : ${found}/${total} chansons enrichies.`);
+    } catch (err) {
+      setErrors([`Erreur enrichissement previews : ${String(err)}`]);
+    } finally {
+      setEnrichLoading(false);
+      setEnrichProgress(null);
+    }
+  };
+
   const resetFilters = () => {
     setSearch("");
     setFilterStatus("all");
@@ -931,6 +975,45 @@ Cette action est irréversible.`
             {testGameLoading ? "Création de la partie…" : "Créer une partie test"}
           </button>
         </div>
+      </div>
+
+      {/* Audio previews */}
+      <div className="bg-gray-950/70 border border-white/10 rounded-3xl p-5 shadow-xl shadow-black/20 flex flex-col gap-4">
+        <div>
+          <h3 className="text-xl font-black text-white tracking-tight">
+            Previews audio
+          </h3>
+
+          <p className="text-gray-500 text-sm mt-1">
+            Enrichit automatiquement les chansons sans preview via l'API iTunes (30 s par chanson). Les nouvelles chansons importées sont enrichies automatiquement.
+          </p>
+        </div>
+
+        {enrichProgress && (
+          <div className="bg-black/30 border border-white/10 rounded-2xl p-4">
+            <p className="text-gray-400 text-sm">
+              Recherche en cours… {enrichProgress.done}/{enrichProgress.total}
+            </p>
+            <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden">
+              <div
+                className="h-full bg-yellow-400 transition-all"
+                style={{ width: `${(enrichProgress.done / enrichProgress.total) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        <button
+          onClick={handleEnrichPreviews}
+          disabled={enrichLoading}
+          className="bg-white/[0.04] text-gray-200 border border-white/10 font-bold rounded-2xl py-3 text-sm hover:bg-white/[0.08] disabled:opacity-50 transition"
+        >
+          {enrichLoading
+            ? enrichProgress
+              ? `Enrichissement… (${enrichProgress.done}/${enrichProgress.total})`
+              : "Chargement…"
+            : "Récupérer les previews manquantes"}
+        </button>
       </div>
 
       {/* Filters */}

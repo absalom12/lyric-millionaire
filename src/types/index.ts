@@ -24,6 +24,7 @@ export interface Song {
   genre?: string;
   country?: string;
   coverUrl?: string;
+  previewUrl?: string;
   spotifyId?: string;
   isrc?: string;
   spotifyPopularity?: number;

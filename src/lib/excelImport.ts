@@ -11,6 +11,7 @@ import {
   setDoc,
   addDoc,
 } from "firebase/firestore";
+import { fetchItunesPreview } from "./itunesPreview";
 
 type ParsedImportResult = {
   rows: ExcelRow[];
@@ -220,6 +221,8 @@ export async function importRows(
       let songId = await findSongId(artistId, row.song_title);
 
       if (!songId) {
+        const previewUrl = await fetchItunesPreview(row.song_title, row.artist_name);
+
         const ref = await addDoc(collection(db, "songs"), {
           title: row.song_title,
           titleLower: row.song_title.toLowerCase(),
@@ -234,6 +237,7 @@ export async function importRows(
           spotifyPopularity: row.spotify_popularity ?? null,
           isGlobalHit: row.is_global_hit ?? false,
           isActive: true,
+          previewUrl: previewUrl ?? null,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
