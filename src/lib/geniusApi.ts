@@ -7,6 +7,7 @@ export interface GeniusSong {
   primary_artist: { id: number; name: string };
   release_date_for_display?: string;
   header_image_thumbnail_url?: string;
+  isDeepCut: boolean;
 }
 
 async function geniusGet(path: string, token: string): Promise<any> {
@@ -15,6 +16,10 @@ async function geniusGet(path: string, token: string): Promise<any> {
   });
   if (!res.ok) throw new Error(`Genius API ${res.status}`);
   return res.json();
+}
+
+function shuffle<T>(arr: T[]): T[] {
+  return [...arr].sort(() => Math.random() - 0.5);
 }
 
 export async function searchArtistSongs(
@@ -29,7 +34,6 @@ export async function searchArtistSongs(
   const hits: any[] = searchData.response?.hits ?? [];
   if (!hits.length) return [];
 
-  // Find the first hit whose primary artist matches the query
   const artistHit = hits.find((h) =>
     h.result?.primary_artist?.name
       ?.toLowerCase()
@@ -41,13 +45,26 @@ export async function searchArtistSongs(
     hits[0]?.result?.primary_artist?.id;
 
   if (!artistId) {
-    return hits.slice(0, 20).map((h) => h.result) as GeniusSong[];
+    return hits.slice(0, 20).map((h) => ({ ...h.result, isDeepCut: false })) as GeniusSong[];
   }
 
+  // Fetch 50 songs sorted by popularity
   const songsData = await geniusGet(
-    `/artists/${artistId}/songs?per_page=30&sort=popularity`,
+    `/artists/${artistId}/songs?per_page=50&sort=popularity`,
     token
   );
 
-  return (songsData.response?.songs ?? []) as GeniusSong[];
+  const all: any[] = songsData.response?.songs ?? [];
+
+  // First 30 = popular hits
+  const popular: GeniusSong[] = all
+    .slice(0, 30)
+    .map((s) => ({ ...s, isDeepCut: false }));
+
+  // Remaining shuffled → take up to 20 as deep cuts
+  const deepCuts: GeniusSong[] = shuffle(all.slice(30))
+    .slice(0, 20)
+    .map((s) => ({ ...s, isDeepCut: true }));
+
+  return [...popular, ...deepCuts];
 }

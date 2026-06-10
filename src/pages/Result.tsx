@@ -2,17 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getGameRun, generateGameRun } from "../lib/gameEngine";
 import { updateDocument } from "../lib/firebase";
-import { GameQuestion, GameRun } from "../types";
+import { GameRun } from "../types";
 import ThemeToggle, { useAppTheme } from "../components/ThemeToggle";
 import LanguageSelector from "../components/LanguageSelector";
 import { useLanguage } from "../i18n/LanguageContext";
 import { TranslationDictionary } from "../i18n/translations";
 import { Sounds } from "../lib/sounds";
-
-type GameQuestionWithMeta = GameQuestion & {
-  difficulty?: number;
-  spotifyStreams?: number;
-};
 
 function formatMoney(value: number): string {
   return new Intl.NumberFormat("fr-FR", {
@@ -20,14 +15,6 @@ function formatMoney(value: number): string {
     currency: "EUR",
     maximumFractionDigits: 0,
   }).format(value);
-}
-
-function formatStreams(value?: number): string {
-  if (!value) return "—";
-  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
-  if (value >= 1_000_000) return `${Math.round(value / 1_000_000)}M`;
-  if (value >= 1_000) return `${Math.round(value / 1_000)}K`;
-  return String(value);
 }
 
 function formatDuration(ms?: number): string {
@@ -114,24 +101,18 @@ async function createResultImage({
   title,
   label,
   money,
-  correct,
-  total,
-  jokers,
   duration,
-  averageDifficulty,
-  averageStreams,
+  playModeLabel,
+  contentLabel,
   isWinner,
   t,
 }: {
   title: string;
   label: string;
   money: number;
-  correct: number;
-  total: number;
-  jokers: number;
   duration: string;
-  averageDifficulty: number;
-  averageStreams: number;
+  playModeLabel: string;
+  contentLabel: string;
   isWinner: boolean;
   t: TranslationDictionary;
 }): Promise<File> {
@@ -194,16 +175,14 @@ async function createResultImage({
 
   const statY = 760;
   const imageStats = [
-    [t.result.correct, `${correct}/${total}`],
-    [t.result.jokers, String(jokers)],
     [t.result.time, duration],
-    [t.result.avgDifficulty, averageDifficulty ? `${averageDifficulty.toFixed(1)}/5` : "—"],
-    [t.result.avgStreams, formatStreams(averageStreams)],
+    ["MODE", playModeLabel],
+    ["CONTENU", contentLabel],
   ];
 
   imageStats.forEach(([statLabel, value], index) => {
-    const x = 120 + index * 170;
-    drawRoundedRect(ctx, x, statY, 155, 150, 28);
+    const x = 120 + index * 290;
+    drawRoundedRect(ctx, x, statY, 260, 150, 28);
     ctx.fillStyle = "rgba(255, 255, 255, 0.07)";
     ctx.fill();
     ctx.fillStyle = "#9ca3af";
@@ -253,25 +232,24 @@ export default function Result() {
   }, [runId]);
 
   const stats = useMemo(() => {
-    if (!run) {
-      return { correct: 0, total: 0, pct: 0, averageDifficulty: 0, totalStreams: 0, averageStreams: 0 };
-    }
-
-    const questions = run.questions as GameQuestionWithMeta[];
-    const correct = questions.filter((q) => q.isCorrect).length;
-    const total = questions.length;
+    if (!run) return { correct: 0, total: 0, pct: 0 };
+    const correct = run.questions.filter((q) => q.isCorrect).length;
+    const total = run.questions.length;
     const pct = total ? Math.round((correct / total) * 100) : 0;
-
-    const questionsWithDifficulty = questions.filter((q) => typeof q.difficulty === "number");
-    const totalDifficulty = questionsWithDifficulty.reduce((sum, q) => sum + Number(q.difficulty ?? 0), 0);
-    const averageDifficulty = questionsWithDifficulty.length ? totalDifficulty / questionsWithDifficulty.length : 0;
-
-    const questionsWithStreams = questions.filter((q) => typeof q.spotifyStreams === "number");
-    const totalStreams = questionsWithStreams.reduce((sum, q) => sum + Number(q.spotifyStreams ?? 0), 0);
-    const averageStreams = questionsWithStreams.length ? totalStreams / questionsWithStreams.length : 0;
-
-    return { correct, total, pct, averageDifficulty, totalStreams, averageStreams };
+    return { correct, total, pct };
   }, [run]);
+
+  function getContentLabel(gameRun: GameRun): string {
+    if (gameRun.modeSlug === "artist-of-the-day") {
+      const name = (gameRun as any).artistName ?? (gameRun as any).dailyArtistName;
+      return name ? name : "Artiste du jour";
+    }
+    return "Global Hits";
+  }
+
+  function getPlayModeLabel(gameRun: GameRun): string {
+    return gameRun.playMode === "blindtest" ? "🎧 Blindtest" : "🎵 Paroles";
+  }
 
   const pageBg = isLight ? "bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-100 text-slate-950" : "bg-[#050509] text-white";
 
@@ -315,6 +293,7 @@ export default function Result() {
       const newRunId = await generateGameRun(modeSlug, artistId, {
         language,
         theme,
+        playMode: run.playMode as "lyrics" | "blindtest" | undefined,
       });
 
       navigate(`/game/${newRunId}`);
@@ -355,12 +334,9 @@ export default function Result() {
         title: result.title,
         label: result.label,
         money: moneyReached,
-        correct: stats.correct,
-        total: stats.total,
-        jokers: run.jokerYearUsed ?? 0,
         duration,
-        averageDifficulty: stats.averageDifficulty,
-        averageStreams: stats.averageStreams,
+        playModeLabel: getPlayModeLabel(run),
+        contentLabel: getContentLabel(run),
         isWinner,
         t,
       });
@@ -427,17 +403,15 @@ export default function Result() {
                   </p>
                 </div>
 
-                <div className="mt-5 grid grid-cols-5 gap-2 sm:mt-8 sm:gap-3">
+                <div className="mt-5 grid grid-cols-3 gap-2 sm:mt-8 sm:gap-3">
                   {[
-                    [t.result.correct, `${stats.correct}/${stats.total}`],
-                    [t.result.jokers, String(run.jokerYearUsed ?? 0)],
                     [t.result.time, duration],
-                    [t.result.avgDifficulty, `${stats.averageDifficulty ? stats.averageDifficulty.toFixed(1) : "—"}/5`],
-                    [t.result.avgStreams, formatStreams(stats.averageStreams)],
+                    ["Mode", getPlayModeLabel(run)],
+                    ["Contenu", getContentLabel(run)],
                   ].map(([label, value]) => (
                     <div key={label} className={["rounded-xl border p-2.5 sm:rounded-2xl sm:p-4", isLight ? "border-orange-100 bg-white/70" : "border-white/10 bg-black/25"].join(" ")}>
                       <p className="truncate text-[10px] font-bold text-gray-500 sm:text-xs">{label}</p>
-                      <p className="mt-1 truncate text-sm font-black sm:text-2xl">{value}</p>
+                      <p className="mt-1 truncate text-sm font-black sm:text-xl">{value}</p>
                     </div>
                   ))}
                 </div>

@@ -9,8 +9,13 @@ export async function generateSnippets(
   lyrics: string,
   songTitle: string,
   artistName: string,
-  apiKey: string
+  apiKey: string,
+  isDeepCut = false
 ): Promise<GeneratedSnippet[]> {
+  const difficultyNote = isDeepCut
+    ? "C'est une chanson moins connue : oriente les difficultés vers 3-5 (évite les 1-2 sauf refrain très accrocheur)."
+    : "C'est un grand hit : varie librement entre 1-5, les refrains évidents peuvent être à 1-2.";
+
   const prompt = `Tu aides à construire un jeu de quiz musical. Extrais 3 à 5 snippets de paroles depuis cette chanson qui feraient de bonnes questions pour deviner la chanson.
 
 Chanson : "${songTitle}" de ${artistName}
@@ -22,7 +27,7 @@ Règles :
 - Chaque snippet : 1 à 4 lignes consécutives, extraites mot pour mot
 - Préfère les passages distinctifs, imagés ou mémorables
 - Si le snippet contient le titre exact de la chanson, mets contains_title à true
-- Varie la difficulté : 1-2 pour les refrains très connus, 3-4 pour les couplets, 5 pour les passages obscurs
+- ${difficultyNote}
 - snippet_type : "chorus" (refrain), "verse" (couplet), "bridge", "intro", "outro", ou "other"
 
 Retourne UNIQUEMENT un tableau JSON valide, sans aucun autre texte :

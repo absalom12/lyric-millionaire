@@ -151,7 +151,7 @@ export default function AdminGenerate() {
           )
         );
 
-        const snippets = await generateSnippets(lyrics, title, artistName, ANTHROPIC_KEY!);
+        const snippets = await generateSnippets(lyrics, title, artistName, ANTHROPIC_KEY!, song.isDeepCut);
 
         if (!snippets.length) {
           setSongs((prev) =>
@@ -332,7 +332,14 @@ export default function AdminGenerate() {
 
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold text-white truncate">{song.title}</p>
-                  <p className="text-xs text-gray-500 truncate">{song.primary_artist.name}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <p className="text-xs text-gray-500 truncate">{song.primary_artist.name}</p>
+                    {song.isDeepCut && (
+                      <span className="shrink-0 text-[10px] font-black px-1.5 py-0.5 rounded-md bg-purple-500/20 text-purple-400 border border-purple-500/25">
+                        deep cut
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Status badge */}
