@@ -9,7 +9,7 @@
  * Prerequisites:
  *   1. Go to Firebase Console → Project Settings → Service Accounts
  *   2. Click "Generate new private key" → download the JSON
- *   3. Save it as  script_snippets/serviceAccount.json  (gitignored)
+ *   3. Save it as  scripts/serviceAccount.json  (gitignored)
  *
  * What it does:
  *   - Searches Deezer for the artist
@@ -26,16 +26,16 @@ import { resolve } from "path";
 
 // ── Firebase Admin init ───────────────────────────────────────────────────────
 
-const SA_PATH = resolve(process.cwd(), "script_snippets/serviceAccount.json");
+const SA_PATH = resolve(process.cwd(), "scripts/serviceAccount.json");
 
 if (!existsSync(SA_PATH)) {
   console.error(`
-❌  Service account not found at: script_snippets/serviceAccount.json
+❌  Service account not found at: scripts/serviceAccount.json
 
 Setup:
   1. Firebase Console → Project Settings → Service Accounts
   2. "Generate new private key" → download JSON
-  3. Save it as script_snippets/serviceAccount.json
+  3. Save it as scripts/serviceAccount.json
 `);
   process.exit(1);
 }
