@@ -70,7 +70,7 @@ export default function App() {
             <Route path="import" element={<AdminImport />} />
             <Route path="snippets" element={<AdminSnippets />} />
             <Route path="daily" element={<AdminDaily />} />
-            <Route path="generate" element={<AdminGenerate />} />
+            <Route path="generer" element={<AdminGenerate />} />
           </Route>
 
           {/* Catch-all */}

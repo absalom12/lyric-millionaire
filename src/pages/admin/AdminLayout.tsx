@@ -36,7 +36,7 @@ const navItems: AdminNavItem[] = [
   },
   {
     label: "Générer",
-    path: "/admin/generate",
+    path: "/admin/generer",
     icon: "🤖",
     description: "Genius + Claude",
   },
