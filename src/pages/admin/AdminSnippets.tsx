@@ -8,7 +8,7 @@ import {
   deleteDocument,
   serverTimestamp,
 } from "../../lib/firebase";
-import { generateGameRun } from "../../lib/gameEngine";
+import { generateGameRun, invalidateGameCache } from "../../lib/gameEngine";
 import { fetchItunesPreview } from "../../lib/itunesPreview";
 import { Snippet } from "../../types/index";
 
@@ -326,6 +326,7 @@ export default function AdminSnippets() {
             : s
         )
       );
+      invalidateGameCache();
     } catch (err) {
       setErrors([`Erreur approbation chanson : ${String(err)}`]);
     } finally {
@@ -400,6 +401,7 @@ export default function AdminSnippets() {
             selectedIds.has(s.id) ? { ...s, isApproved: true, licenseStatus: "manual_mvp" } : s
           )
         );
+        invalidateGameCache();
         setReport(`✅ ${items.length} snippet(s) approuvé(s).`);
       }
       if (action === "reject") {
@@ -409,6 +411,7 @@ export default function AdminSnippets() {
             selectedIds.has(s.id) ? { ...s, isApproved: false, licenseStatus: "removed" } : s
           )
         );
+        invalidateGameCache();
         setReport(`🚫 ${items.length} snippet(s) rejeté(s).`);
       }
       if (action === "delete") {
@@ -512,6 +515,7 @@ export default function AdminSnippets() {
             : s
         )
       );
+      invalidateGameCache();
       setReport("✅ Snippet modifié avec succès.");
       closeEditModal();
     } catch (err) {
@@ -543,6 +547,7 @@ export default function AdminSnippets() {
           ids.has(s.id) ? { ...s, isApproved: true, licenseStatus: "manual_mvp" } : s
         )
       );
+      invalidateGameCache();
       setReport(`✅ ${pendingFilteredSnippets.length} snippet(s) filtré(s) approuvé(s).`);
     } catch (err) {
       setErrors([`Erreur approbation massive : ${String(err)}`]);
