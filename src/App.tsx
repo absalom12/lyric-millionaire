@@ -33,7 +33,8 @@ import AdminImport from "./pages/admin/AdminImport";
 import AdminSnippets from "./pages/admin/AdminSnippets";
 import AdminDaily from "./pages/admin/AdminDaily";
 import AdminSnippetGen from "./pages/admin/AdminSnippetGen";
-import AdminSongs from "./pages/admin/AdminSongs";
+import AdminPreviews from "./pages/admin/AdminPreviews";
+import AdminPlaylists from "./pages/admin/AdminPlaylists";
 
 export default function App() {
   return (
@@ -72,7 +73,8 @@ export default function App() {
             <Route path="snippets" element={<AdminSnippets />} />
             <Route path="daily" element={<AdminDaily />} />
             <Route path="maker" element={<AdminSnippetGen />} />
-            <Route path="songs" element={<AdminSongs />} />
+            <Route path="previews" element={<AdminPreviews />} />
+            <Route path="playlists" element={<AdminPlaylists />} />
           </Route>
 
           {/* Catch-all */}
