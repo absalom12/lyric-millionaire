@@ -87,7 +87,7 @@ export default function AdminPlaylists() {
               ? (s.playlists ?? []).filter((p) => p !== slug)
               : [...(s.playlists ?? []), slug],
           };
-          if (legacyKey) (next as Record<string, unknown>)[legacyKey] = !wasIn;
+          if (legacyKey) (next as unknown as Record<string, unknown>)[legacyKey] = !wasIn;
           return next;
         })
       );
