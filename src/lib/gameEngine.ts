@@ -121,39 +121,47 @@ async function getTodayDailyArtist(): Promise<DailyArtistLite | null> {
   return result;
 }
 
+/** Load all active songs once per hour, shared across modes. */
+async function getAllActiveSongs(): Promise<SongWithId[]> {
+  const key = "songs:active";
+  const cached = getCache<SongWithId[]>(key);
+  if (cached) return cached;
+  const snap = await getDocs(query(collection(db, "songs"), where("isActive", "==", true)));
+  const songs = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as SongWithId);
+  setCache(key, songs);
+  return songs;
+}
+
 /**
  * Fetch songs scoped to the game mode.
- * – global-hits / rap-fr  : Firestore-level filter, much smaller result set
- * – artist-of-the-day     : only that artist's songs
+ * – global-hits / rap-fr  : cached all-active, filtered in JS
+ *   (supports both legacy boolean fields AND new playlists[] array — no migration needed)
+ * – artist-of-the-day     : Firestore query scoped to that artist only
  */
 async function fetchSongsForMode(
   modeSlug: GameModeSlug,
   artistId?: string
 ): Promise<SongWithId[]> {
-  let key: string;
-  let constraints: Parameters<typeof query>[1][];
-
-  if (modeSlug === "global-hits") {
-    key = "songs:global-hits";
-    constraints = [where("isActive", "==", true), where("isGlobalHit", "==", true)];
-  } else if (modeSlug === "rap-fr") {
-    key = "songs:rap-fr";
-    constraints = [where("isActive", "==", true), where("isRapFr", "==", true)];
-  } else if (artistId) {
-    key = `songs:artist:${artistId}`;
-    constraints = [where("isActive", "==", true), where("artistId", "==", artistId)];
-  } else {
-    key = "songs:active";
-    constraints = [where("isActive", "==", true)];
+  if (modeSlug === "artist-of-the-day" && artistId) {
+    const key = `songs:artist:${artistId}`;
+    const cached = getCache<SongWithId[]>(key);
+    if (cached) return cached;
+    const snap = await getDocs(query(collection(db, "songs"), where("isActive", "==", true), where("artistId", "==", artistId)));
+    const songs = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as SongWithId);
+    setCache(key, songs);
+    return songs;
   }
 
-  const cached = getCache<SongWithId[]>(key);
-  if (cached) return cached;
+  const all = await getAllActiveSongs();
 
-  const snap = await getDocs(query(collection(db, "songs"), ...constraints));
-  const songs = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as SongWithId);
-  setCache(key, songs);
-  return songs;
+  if (modeSlug === "global-hits") {
+    return all.filter((s) => s.isGlobalHit === true || s.playlists?.includes("global-hits"));
+  }
+  if (modeSlug === "rap-fr") {
+    return all.filter((s) => s.isRapFr === true || s.playlists?.includes("rap-fr"));
+  }
+
+  return all;
 }
 
 /**
