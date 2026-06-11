@@ -35,6 +35,7 @@ import AdminDaily from "./pages/admin/AdminDaily";
 import AdminSnippetGen from "./pages/admin/AdminSnippetGen";
 import AdminPreviews from "./pages/admin/AdminPreviews";
 import AdminPlaylists from "./pages/admin/AdminPlaylists";
+import AdminSnippets2 from "./pages/admin/AdminSnippets2";
 
 export default function App() {
   return (
@@ -75,6 +76,7 @@ export default function App() {
             <Route path="maker" element={<AdminSnippetGen />} />
             <Route path="previews" element={<AdminPreviews />} />
             <Route path="playlists" element={<AdminPlaylists />} />
+            <Route path="snippets2" element={<AdminSnippets2 />} />
           </Route>
 
           {/* Catch-all */}
