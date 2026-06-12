@@ -45,21 +45,12 @@ export default function App() {
         <Routes>
           {/* ── Player routes ── */}
           <Route path="/" element={<Home />} />
-
-          {/* /play and /play/* both redirect to home — mode selection lives there */}
           <Route path="/play" element={<Navigate to="/" replace />} />
           <Route path="/play/global-hits" element={<Navigate to="/" replace />} />
           <Route path="/play/artist-of-the-day" element={<Navigate to="/" replace />} />
-
-          {/* Active game */}
           <Route path="/game/:runId" element={<Game />} />
-
-          {/* Result screen */}
           <Route path="/result/:runId" element={<Result />} />
-
-          {/* ── Admin routes ── */}
           <Route path="/admin/login" element={<AdminLogin />} />
-
           <Route
             path="/admin"
             element={
