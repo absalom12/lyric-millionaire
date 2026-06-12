@@ -19,6 +19,17 @@ import {
 import { LanguageCode } from "../i18n/translations";
 import { AppTheme } from "../components/ThemeToggle";
 
+function sanitizeForFirestore(value: unknown): unknown {
+  if (value === undefined) return null;
+  if (typeof value === "number" && isNaN(value)) return null;
+  if (value === null || typeof value !== "object") return value;
+  if (Array.isArray(value)) return value.map(sanitizeForFirestore);
+  if (Object.getPrototypeOf(value) !== Object.prototype) return value;
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, sanitizeForFirestore(v)])
+  );
+}
+
 type GameRunAnalyticsOptions = {
   language?: LanguageCode;
   theme?: AppTheme;
@@ -415,7 +426,7 @@ export async function generateGameRun(
     dailyArtistName: modeSlug === "artist-of-the-day" ? resolvedArtistName || null : null,
   } as Omit<GameRun, "id"> & Record<string, unknown>;
 
-  const ref = await addDoc(collection(db, "gameRuns"), run);
+  const ref = await addDoc(collection(db, "gameRuns"), sanitizeForFirestore(run) as Record<string, unknown>);
 
   console.info(
     `[Lyric Millionaire] Game generated in ${Math.round(performance.now() - startedAtMs)}ms (${modeSlug})`
