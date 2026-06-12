@@ -19,7 +19,6 @@ import AdminLogin from "./pages/admin/AdminLogin";
 import AdminSnippetGen from "./pages/admin/AdminSnippetGen";
 import AdminPreviews from "./pages/admin/AdminPreviews";
 import AdminPlaylists from "./pages/admin/AdminPlaylists";
-import AdminSnippets2 from "./pages/admin/AdminSnippets2";
 
 // Auth guard
 import AuthGuard from "./components/AuthGuard";
@@ -49,7 +48,6 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <Route path="maker" element={<AdminSnippetGen />} />
             <Route path="previews" element={<AdminPreviews />} />
             <Route path="playlists" element={<AdminPlaylists />} />
-            <Route path="snippets2" element={<AdminSnippets2 />} />
           </Route>
           {/* Catch-all */}
           <Route path="*" element={<Navigate to="/" replace />} />

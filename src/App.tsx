@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Component, type ReactNode } from "react";
 import { LanguageProvider } from "./i18n/LanguageContext";
 import AuthGuard from "./components/AuthGuard";
@@ -35,33 +35,12 @@ import AdminDaily from "./pages/admin/AdminDaily";
 import AdminSnippetGen from "./pages/admin/AdminSnippetGen";
 import AdminPreviews from "./pages/admin/AdminPreviews";
 import AdminPlaylists from "./pages/admin/AdminPlaylists";
-import AdminSnippets2 from "./pages/admin/AdminSnippets2";
-
-console.error("[DEBUG App] All imports loaded successfully");
-console.error("[DEBUG App] AdminSnippetGen:", typeof AdminSnippetGen);
-console.error("[DEBUG App] AdminPreviews:", typeof AdminPreviews);
-console.error("[DEBUG App] AdminPlaylists:", typeof AdminPlaylists);
-console.error("[DEBUG App] AdminSnippets2:", typeof AdminSnippets2);
-
-function DebugLocation() {
-  const loc = useLocation();
-  console.error("[DEBUG Router] Current location:", loc.pathname, "| Routes rendered");
-  return null;
-}
-
-function CatchAll() {
-  const loc = useLocation();
-  console.error("[DEBUG Router] NO MATCH for:", loc.pathname, "— redirecting to /");
-  return <Navigate to="/" replace />;
-}
 
 export default function App() {
-  console.log("[DEBUG App] App() render called");
   return (
     <ErrorBoundary>
     <LanguageProvider>
       <BrowserRouter>
-        <DebugLocation />
         <Routes>
           {/* ── Player routes ── */}
           <Route path="/" element={<Home />} />
@@ -79,7 +58,6 @@ export default function App() {
               </AuthGuard>
             }
           >
-            {/* Index → dashboard */}
             <Route index element={<AdminDashboard />} />
             <Route path="import" element={<AdminImport />} />
             <Route path="snippets" element={<AdminSnippets />} />
@@ -87,11 +65,10 @@ export default function App() {
             <Route path="maker" element={<AdminSnippetGen />} />
             <Route path="previews" element={<AdminPreviews />} />
             <Route path="playlists" element={<AdminPlaylists />} />
-            <Route path="snippets2" element={<AdminSnippets2 />} />
           </Route>
 
           {/* Catch-all */}
-          <Route path="*" element={<CatchAll />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </LanguageProvider>
