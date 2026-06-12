@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Component, type ReactNode } from "react";
 import { LanguageProvider } from "./i18n/LanguageContext";
 import AuthGuard from "./components/AuthGuard";
@@ -37,11 +37,31 @@ import AdminPreviews from "./pages/admin/AdminPreviews";
 import AdminPlaylists from "./pages/admin/AdminPlaylists";
 import AdminSnippets2 from "./pages/admin/AdminSnippets2";
 
+console.log("[DEBUG App] All imports loaded successfully");
+console.log("[DEBUG App] AdminSnippetGen:", typeof AdminSnippetGen);
+console.log("[DEBUG App] AdminPreviews:", typeof AdminPreviews);
+console.log("[DEBUG App] AdminPlaylists:", typeof AdminPlaylists);
+console.log("[DEBUG App] AdminSnippets2:", typeof AdminSnippets2);
+
+function DebugLocation() {
+  const loc = useLocation();
+  console.log("[DEBUG Router] Current location:", loc.pathname, "| Routes rendered");
+  return null;
+}
+
+function CatchAll() {
+  const loc = useLocation();
+  console.error("[DEBUG Router] NO MATCH for:", loc.pathname, "— redirecting to /");
+  return <Navigate to="/" replace />;
+}
+
 export default function App() {
+  console.log("[DEBUG App] App() render called");
   return (
     <ErrorBoundary>
     <LanguageProvider>
       <BrowserRouter>
+        <DebugLocation />
         <Routes>
           {/* ── Player routes ── */}
           <Route path="/" element={<Home />} />
@@ -71,7 +91,7 @@ export default function App() {
           </Route>
 
           {/* Catch-all */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<CatchAll />} />
         </Routes>
       </BrowserRouter>
     </LanguageProvider>
