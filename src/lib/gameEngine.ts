@@ -230,7 +230,7 @@ function getWrongAnswersFromPool({
   const ranked = shuffle(candidates).sort(
     (a, b) => rankWrongAnswerCandidate(b, correctSong) - rankWrongAnswerCandidate(a, correctSong)
   );
-  return ranked.slice(0, count).map((s) => ({ songId: s.id, title: s.title, artistName: s.artistName }));
+  return ranked.slice(0, count).map((s) => ({ songId: s.id, title: s.title ?? null, artistName: s.artistName ?? null }));
 }
 
 // ── Snippet pool builders ─────────────────────────────────────────────────────
@@ -371,16 +371,16 @@ export async function generateGameRun(
 
     questions.push({
       snippetId: snippet.id,
-      snippetText: snippet.text,
+      snippetText: snippet.text ?? null,
       correctSongId: song.id,
-      correctTitle: song.title,
-      correctArtist: song.artistName,
-      releaseYear: song.releaseYear,
+      correctTitle: song.title ?? null,
+      correctArtist: song.artistName ?? null,
+      releaseYear: song.releaseYear ?? null,
       difficulty: Number(snippet.difficulty),
-      spotifyStreams: song.spotifyStreams,
+      spotifyStreams: song.spotifyStreams ?? null,
       previewUrl: song.previewUrl ?? null,
       answers: shuffle([
-        { songId: song.id, title: song.title, artistName: song.artistName },
+        { songId: song.id, title: song.title ?? null, artistName: song.artistName ?? null },
         ...wrongAnswers,
       ]),
     });
