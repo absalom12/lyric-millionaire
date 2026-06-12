@@ -15,6 +15,7 @@ import { GamePlaylist, Snippet } from "../../types/index";
 type AdminSnippet = Snippet & {
   id: string;
   songPlaylists?: string[];
+  songGenre?: string;
 };
 
 type FilterStatus = "all" | "pending" | "approved" | "rejected";
@@ -124,6 +125,70 @@ function SortableHeader({
   );
 }
 
+function MultiSelectDropdown({
+  label,
+  options,
+  selected,
+  onChange,
+}: {
+  label: string;
+  options: { id: string; label: string }[];
+  selected: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const count = selected.length;
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={[
+          "w-full flex items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-sm text-left transition",
+          count > 0
+            ? "border-yellow-400/40 bg-yellow-400/[0.06] text-yellow-300"
+            : "border-white/10 bg-black/40 text-white",
+        ].join(" ")}
+      >
+        <span className="truncate">{count > 0 ? `${label} (${count})` : label}</span>
+        <span className="text-gray-500 shrink-0">{open ? "▲" : "▼"}</span>
+      </button>
+      {open && (
+        <div className="absolute z-20 top-full mt-1 left-0 right-0 bg-gray-950 border border-white/10 rounded-xl shadow-2xl max-h-52 overflow-y-auto">
+          {options.length === 0 && (
+            <p className="px-3 py-2 text-xs text-gray-600">Aucune option</p>
+          )}
+          {selected.length > 0 && (
+            <button
+              onClick={() => onChange([])}
+              className="w-full text-left px-3 py-2 text-xs text-red-400 hover:bg-white/[0.04] border-b border-white/[0.06]"
+            >
+              Tout désélectionner
+            </button>
+          )}
+          {options.map((opt) => {
+            const checked = selected.includes(opt.id);
+            return (
+              <label key={opt.id} className="flex items-center gap-2.5 px-3 py-2 hover:bg-white/[0.04] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() =>
+                    onChange(checked ? selected.filter((s) => s !== opt.id) : [...selected, opt.id])
+                  }
+                  className="h-3.5 w-3.5 accent-yellow-400 shrink-0"
+                />
+                <span className={["text-sm truncate", checked ? "text-white font-bold" : "text-gray-400"].join(" ")}>
+                  {opt.label}
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminSnippets() {
   const navigate = useNavigate();
 
@@ -142,7 +207,9 @@ export default function AdminSnippets() {
 
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("pending");
-  const [filterArtist, setFilterArtist] = useState("all");
+  const [filterArtists, setFilterArtists] = useState<string[]>([]);
+  const [filterGenres, setFilterGenres] = useState<string[]>([]);
+  const [filterPlaylists, setFilterPlaylists] = useState<string[]>([]);
   const [filterSong, setFilterSong] = useState("all");
   const [filterDifficulty, setFilterDifficulty] = useState<FilterDifficulty>("all");
 
@@ -174,12 +241,15 @@ export default function AdminSnippets() {
       ]);
 
       const songDataById = new Map(
-        songsSnap.docs.map((d) => [d.id, { playlists: ((d.data() as Record<string, unknown>).playlists ?? []) as string[] }])
+        songsSnap.docs.map((d) => [d.id, {
+          playlists: ((d.data() as Record<string, unknown>).playlists ?? []) as string[],
+          genre: (d.data() as Record<string, unknown>).genre as string | undefined,
+        }])
       );
 
       const data = snippetsSnap.docs.map((d) => {
         const snippet = { id: d.id, ...d.data() } as AdminSnippet;
-        return { ...snippet, songPlaylists: songDataById.get(snippet.songId)?.playlists ?? [] };
+        return { ...snippet, songPlaylists: songDataById.get(snippet.songId)?.playlists ?? [], songGenre: songDataById.get(snippet.songId)?.genre };
       });
 
       setPlaylists(playlistsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as GamePlaylist)));
@@ -577,7 +647,9 @@ export default function AdminSnippets() {
   const resetFilters = () => {
     setSearch("");
     setFilterStatus("pending");
-    setFilterArtist("all");
+    setFilterArtists([]);
+    setFilterGenres([]);
+    setFilterPlaylists([]);
     setFilterSong("all");
     setFilterDifficulty("all");
     setSortColumn("artistName");
@@ -602,16 +674,6 @@ export default function AdminSnippets() {
   );
   const canGenerateGlobalGame = easyApprovedCount >= 5 && hardApprovedCount >= 5 && uniqueApprovedSongsCount >= 10;
 
-  const artistOptions = useMemo(() => {
-    const artists = new Map<string, string>();
-    snippets.forEach((s) => {
-      if (s.artistId && s.artistName) artists.set(s.artistId, s.artistName);
-    });
-    return Array.from(artists.entries())
-      .map(([id, name]) => ({ id, name }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [snippets]);
-
   const songOptions = useMemo(() => {
     const songs = new Map<string, { id: string; title: string; artistName: string; artistId: string }>();
     snippets.forEach((s) => {
@@ -624,10 +686,31 @@ export default function AdminSnippets() {
     });
   }, [snippets]);
 
+  const genreOptions = useMemo(() => {
+    const genres = new Set<string>();
+    snippets.forEach((s) => { if (s.songGenre) genres.add(s.songGenre); });
+    return Array.from(genres).sort().map((g) => ({ id: g, label: g }));
+  }, [snippets]);
+
+  const playlistOptions = useMemo(
+    () => playlists.map((p) => ({ id: p.slug, label: `${p.emoji ?? "🎵"} ${p.name}` })),
+    [playlists]
+  );
+
+  const artistOptions = useMemo(() => {
+    const artists = new Map<string, string>();
+    snippets.forEach((s) => {
+      if (s.artistId && s.artistName) artists.set(s.artistId, s.artistName);
+    });
+    return Array.from(artists.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [snippets]);
+
   const filteredSongOptions = useMemo(() => {
-    if (filterArtist === "all") return songOptions;
-    return songOptions.filter((s) => s.artistId === filterArtist);
-  }, [songOptions, filterArtist]);
+    if (filterArtists.length === 0) return songOptions;
+    return songOptions.filter((s) => filterArtists.includes(s.artistId));
+  }, [songOptions, filterArtists]);
 
   const filteredSnippets = useMemo(() => {
     let result = [...snippets];
@@ -644,7 +727,9 @@ export default function AdminSnippets() {
       );
     }
     if (filterStatus !== "all") result = result.filter((s) => getSnippetStatus(s) === filterStatus);
-    if (filterArtist !== "all") result = result.filter((s) => s.artistId === filterArtist);
+    if (filterArtists.length > 0) result = result.filter((s) => filterArtists.includes(s.artistId));
+    if (filterGenres.length > 0) result = result.filter((s) => s.songGenre != null && filterGenres.includes(s.songGenre));
+    if (filterPlaylists.length > 0) result = result.filter((s) => filterPlaylists.some((p) => (s.songPlaylists ?? []).includes(p)));
     if (filterSong !== "all") result = result.filter((s) => s.songId === filterSong);
     if (filterDifficulty !== "all") result = result.filter((s) => String(s.difficulty) === filterDifficulty);
 
@@ -663,7 +748,7 @@ export default function AdminSnippets() {
     });
 
     return result;
-  }, [snippets, search, filterStatus, filterArtist, filterSong, filterDifficulty, sortColumn, sortDirection]);
+  }, [snippets, search, filterStatus, filterArtists, filterGenres, filterPlaylists, filterSong, filterDifficulty, sortColumn, sortDirection]);
 
   const filteredPendingCount = useMemo(
     () => filteredSnippets.filter((s) => getSnippetStatus(s) === "pending").length,
@@ -707,15 +792,15 @@ export default function AdminSnippets() {
   }, []);
 
   useEffect(() => {
-    if (filterSong !== "all" && filterArtist !== "all") {
+    if (filterSong !== "all" && filterArtists.length > 0) {
       const selectedSong = songOptions.find((s) => s.id === filterSong);
-      if (selectedSong && selectedSong.artistId !== filterArtist) setFilterSong("all");
+      if (selectedSong && !filterArtists.includes(selectedSong.artistId)) setFilterSong("all");
     }
-  }, [filterArtist, filterSong, songOptions]);
+  }, [filterArtists, filterSong, songOptions]);
 
   useEffect(() => {
-    if (filterArtist !== "all") setViewMode("review");
-  }, [filterArtist]);
+    if (filterArtists.length > 0) setViewMode("review");
+  }, [filterArtists]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -782,22 +867,18 @@ export default function AdminSnippets() {
           className="bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-gray-600 outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/10"
         />
 
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-          <label className="flex flex-col gap-1.5">
+        <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
+          <div className="flex flex-col gap-1.5">
             <span className="text-gray-500 text-xs font-bold">Artiste</span>
-            <select
-              value={filterArtist}
-              onChange={(e) => setFilterArtist(e.target.value)}
-              className="bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-yellow-400"
-            >
-              <option value="all">Tous les artistes</option>
-              {artistOptions.map((a) => (
-                <option key={a.id} value={a.id}>{a.name}</option>
-              ))}
-            </select>
-          </label>
+            <MultiSelectDropdown
+              label="Tous les artistes"
+              options={artistOptions.map((a) => ({ id: a.id, label: a.name }))}
+              selected={filterArtists}
+              onChange={setFilterArtists}
+            />
+          </div>
 
-          <label className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5">
             <span className="text-gray-500 text-xs font-bold">Chanson</span>
             <select
               value={filterSong}
@@ -809,9 +890,9 @@ export default function AdminSnippets() {
                 <option key={s.id} value={s.id}>{s.artistName} — {s.title}</option>
               ))}
             </select>
-          </label>
+          </div>
 
-          <label className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5">
             <span className="text-gray-500 text-xs font-bold">Statut</span>
             <select
               value={filterStatus}
@@ -823,9 +904,9 @@ export default function AdminSnippets() {
               <option value="approved">Approuvés</option>
               <option value="rejected">Rejetés</option>
             </select>
-          </label>
+          </div>
 
-          <label className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5">
             <span className="text-gray-500 text-xs font-bold">Difficulté</span>
             <select
               value={filterDifficulty}
@@ -839,7 +920,27 @@ export default function AdminSnippets() {
               <option value="4">4 — Difficile</option>
               <option value="5">5 — Très difficile</option>
             </select>
-          </label>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <span className="text-gray-500 text-xs font-bold">Genre</span>
+            <MultiSelectDropdown
+              label="Tous les genres"
+              options={genreOptions}
+              selected={filterGenres}
+              onChange={setFilterGenres}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <span className="text-gray-500 text-xs font-bold">Playlist</span>
+            <MultiSelectDropdown
+              label="Toutes les playlists"
+              options={playlistOptions}
+              selected={filterPlaylists}
+              onChange={setFilterPlaylists}
+            />
+          </div>
         </div>
       </div>
 
@@ -870,7 +971,7 @@ export default function AdminSnippets() {
           </div>
           <span className="text-gray-600 text-xs">
             {filteredSnippets.length} snippet{filteredSnippets.length !== 1 ? "s" : ""}
-            {filterArtist !== "all" && (
+            {filterArtists.length > 0 && (
               <span> · {snippetsBySong.length} chanson{snippetsBySong.length !== 1 ? "s" : ""}</span>
             )}
           </span>
