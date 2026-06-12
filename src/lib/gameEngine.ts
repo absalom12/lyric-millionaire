@@ -19,12 +19,27 @@ import {
 import { LanguageCode } from "../i18n/translations";
 import { AppTheme } from "../components/ThemeToggle";
 
+function findUndefinedPaths(value: unknown, path = "run"): string[] {
+  if (value === undefined) return [path];
+  if (typeof value === "number" && isNaN(value)) return [`${path} [NaN]`];
+  if (value === null || typeof value !== "object") return [];
+  if (Array.isArray(value)) {
+    return (value as unknown[]).flatMap((item, i) => findUndefinedPaths(item, `${path}[${i}]`));
+  }
+  const proto = Object.getPrototypeOf(value);
+  if (proto !== Object.prototype && proto !== null) return [];
+  return Object.entries(value as Record<string, unknown>).flatMap(([k, v]) =>
+    findUndefinedPaths(v, `${path}.${k}`)
+  );
+}
+
 function sanitizeForFirestore(value: unknown): unknown {
   if (value === undefined) return null;
   if (typeof value === "number" && isNaN(value)) return null;
   if (value === null || typeof value !== "object") return value;
   if (Array.isArray(value)) return value.map(sanitizeForFirestore);
-  if (Object.getPrototypeOf(value) !== Object.prototype) return value;
+  const proto = Object.getPrototypeOf(value);
+  if (proto !== Object.prototype && proto !== null) return value;
   return Object.fromEntries(
     Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, sanitizeForFirestore(v)])
   );
@@ -426,7 +441,35 @@ export async function generateGameRun(
     dailyArtistName: modeSlug === "artist-of-the-day" ? resolvedArtistName || null : null,
   } as Omit<GameRun, "id"> & Record<string, unknown>;
 
-  const ref = await addDoc(collection(db, "gameRuns"), sanitizeForFirestore(run) as Record<string, unknown>);
+  // ── Debug: find undefined / NaN fields ───────────────────────────────────────
+  const badPaths = findUndefinedPaths(run);
+  if (badPaths.length > 0) {
+    console.error(
+      "[Lyric Millionaire] 🚨 Champs undefined/NaN AVANT sanitize:",
+      badPaths
+    );
+    console.error(
+      "[Lyric Millionaire] 🚨 Objet run brut:",
+      JSON.stringify(run, (_, v) => (v === undefined ? "__UNDEFINED__" : v), 2)
+    );
+  } else {
+    console.info("[Lyric Millionaire] ✅ Aucun undefined avant sanitize");
+  }
+
+  const sanitized = sanitizeForFirestore(run) as Record<string, unknown>;
+
+  const badPathsAfter = findUndefinedPaths(sanitized);
+  if (badPathsAfter.length > 0) {
+    console.error(
+      "[Lyric Millionaire] 🚨 Champs undefined/NaN APRÈS sanitize (bug sanitize!):",
+      badPathsAfter
+    );
+  } else {
+    console.info("[Lyric Millionaire] ✅ sanitize OK — écriture Firestore...");
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  const ref = await addDoc(collection(db, "gameRuns"), sanitized);
 
   console.info(
     `[Lyric Millionaire] Game generated in ${Math.round(performance.now() - startedAtMs)}ms (${modeSlug})`
