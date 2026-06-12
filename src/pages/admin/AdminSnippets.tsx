@@ -10,11 +10,12 @@ import {
 } from "../../lib/firebase";
 import { generateGameRun, invalidateGameCache } from "../../lib/gameEngine";
 import { fetchItunesPreview } from "../../lib/itunesPreview";
-import { Snippet } from "../../types/index";
+import { GamePlaylist, Snippet } from "../../types/index";
 
 type AdminSnippet = Snippet & {
   id: string;
-  isGlobalHit?: boolean;
+  songPlaylists?: string[];
+  songGenre?: string;
 };
 
 type FilterStatus = "all" | "pending" | "approved" | "rejected";
@@ -40,7 +41,6 @@ type EditSnippetForm = {
   containsTitle: boolean;
   isApproved: boolean;
   licenseStatus: string;
-  isGlobalHit: boolean;
 };
 
 function getSnippetStatus(snippet: AdminSnippet): FilterStatus {
@@ -125,6 +125,70 @@ function SortableHeader({
   );
 }
 
+function MultiSelectDropdown({
+  label,
+  options,
+  selected,
+  onChange,
+}: {
+  label: string;
+  options: { id: string; label: string }[];
+  selected: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const count = selected.length;
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={[
+          "w-full flex items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-sm text-left transition",
+          count > 0
+            ? "border-yellow-400/40 bg-yellow-400/[0.06] text-yellow-300"
+            : "border-white/10 bg-black/40 text-white",
+        ].join(" ")}
+      >
+        <span className="truncate">{count > 0 ? `${label} (${count})` : label}</span>
+        <span className="text-gray-500 shrink-0">{open ? "▲" : "▼"}</span>
+      </button>
+      {open && (
+        <div className="absolute z-20 top-full mt-1 left-0 right-0 bg-gray-950 border border-white/10 rounded-xl shadow-2xl max-h-52 overflow-y-auto">
+          {options.length === 0 && (
+            <p className="px-3 py-2 text-xs text-gray-600">Aucune option</p>
+          )}
+          {selected.length > 0 && (
+            <button
+              onClick={() => onChange([])}
+              className="w-full text-left px-3 py-2 text-xs text-red-400 hover:bg-white/[0.04] border-b border-white/[0.06]"
+            >
+              Tout désélectionner
+            </button>
+          )}
+          {options.map((opt) => {
+            const checked = selected.includes(opt.id);
+            return (
+              <label key={opt.id} className="flex items-center gap-2.5 px-3 py-2 hover:bg-white/[0.04] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() =>
+                    onChange(checked ? selected.filter((s) => s !== opt.id) : [...selected, opt.id])
+                  }
+                  className="h-3.5 w-3.5 accent-yellow-400 shrink-0"
+                />
+                <span className={["text-sm truncate", checked ? "text-white font-bold" : "text-gray-400"].join(" ")}>
+                  {opt.label}
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminSnippets() {
   const navigate = useNavigate();
 
@@ -143,7 +207,9 @@ export default function AdminSnippets() {
 
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("pending");
-  const [filterArtist, setFilterArtist] = useState("all");
+  const [filterArtists, setFilterArtists] = useState<string[]>([]);
+  const [filterGenres, setFilterGenres] = useState<string[]>([]);
+  const [filterPlaylists, setFilterPlaylists] = useState<string[]>([]);
   const [filterSong, setFilterSong] = useState("all");
   const [filterDifficulty, setFilterDifficulty] = useState<FilterDifficulty>("all");
 
@@ -156,25 +222,37 @@ export default function AdminSnippets() {
   const [editForm, setEditForm] = useState<EditSnippetForm | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
 
+  const [playlists, setPlaylists] = useState<GamePlaylist[]>([]);
+  const [playlistModal, setPlaylistModal] = useState<{ snippet: AdminSnippet; selected: string[] } | null>(null);
+  const [playlistModalSaving, setPlaylistModalSaving] = useState(false);
+  const [bulkPlaylistModal, setBulkPlaylistModal] = useState<string[]>([]);
+  const [bulkPlaylistModalOpen, setBulkPlaylistModalOpen] = useState(false);
+
   const loadSnippets = async () => {
     setLoading(true);
     setErrors([]);
     setReport(null);
 
     try {
-      const [snippetsSnap, songsSnap] = await Promise.all([
+      const [snippetsSnap, songsSnap, playlistsSnap] = await Promise.all([
         getDocs(collection(db, "snippets")),
         getDocs(collection(db, "songs")),
+        getDocs(collection(db, "gamePlaylists")),
       ]);
 
-      const globalHitBySongId = new Map(
-        songsSnap.docs.map((d) => [d.id, Boolean((d.data() as any).isGlobalHit)])
+      const songDataById = new Map(
+        songsSnap.docs.map((d) => [d.id, {
+          playlists: ((d.data() as Record<string, unknown>).playlists ?? []) as string[],
+          genre: (d.data() as Record<string, unknown>).genre as string | undefined,
+        }])
       );
 
       const data = snippetsSnap.docs.map((d) => {
         const snippet = { id: d.id, ...d.data() } as AdminSnippet;
-        return { ...snippet, isGlobalHit: globalHitBySongId.get(snippet.songId) ?? false };
+        return { ...snippet, songPlaylists: songDataById.get(snippet.songId)?.playlists ?? [], songGenre: songDataById.get(snippet.songId)?.genre };
       });
+
+      setPlaylists(playlistsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as GamePlaylist)));
 
       setSnippets(data);
       setSelectedIds((current) => {
@@ -223,28 +301,6 @@ export default function AdminSnippets() {
     }
   };
 
-  const rejectSnippet = async (snippetId: string) => {
-    setActionLoadingId(snippetId);
-    setErrors([]);
-    setReport(null);
-    try {
-      await updateDocument("snippets", snippetId, {
-        isApproved: false,
-        licenseStatus: "removed",
-        updatedAt: serverTimestamp(),
-      });
-      setSnippets((prev) =>
-        prev.map((s) =>
-          s.id === snippetId ? { ...s, isApproved: false, licenseStatus: "removed" } : s
-        )
-      );
-    } catch (err) {
-      setErrors([`Erreur rejet snippet : ${String(err)}`]);
-    } finally {
-      setActionLoadingId(null);
-    }
-  };
-
   const restoreSnippetToPending = async (snippetId: string) => {
     setActionLoadingId(snippetId);
     setErrors([]);
@@ -262,27 +318,6 @@ export default function AdminSnippets() {
       );
     } catch (err) {
       setErrors([`Erreur restauration snippet : ${String(err)}`]);
-    } finally {
-      setActionLoadingId(null);
-    }
-  };
-
-  const toggleGlobalHit = async (snippet: AdminSnippet) => {
-    if (!snippet.songId) return;
-    const nextValue = !Boolean(snippet.isGlobalHit);
-    setActionLoadingId(snippet.id);
-    setErrors([]);
-    setReport(null);
-    try {
-      await updateDocument("songs", snippet.songId, {
-        isGlobalHit: nextValue,
-        updatedAt: serverTimestamp(),
-      });
-      setSnippets((prev) =>
-        prev.map((s) => (s.songId === snippet.songId ? { ...s, isGlobalHit: nextValue } : s))
-      );
-    } catch (err) {
-      setErrors([`Erreur Global Hit : ${String(err)}`]);
     } finally {
       setActionLoadingId(null);
     }
@@ -355,16 +390,6 @@ export default function AdminSnippets() {
     }
   };
 
-  const handleBulkReject = async (items: AdminSnippet[]) => {
-    for (const snippet of items) {
-      await updateDocument("snippets", snippet.id, {
-        isApproved: false,
-        licenseStatus: "removed",
-        updatedAt: serverTimestamp(),
-      });
-    }
-  };
-
   const handleBulkDelete = async (items: AdminSnippet[]) => {
     const confirmed = window.confirm(
       `Supprimer définitivement ${items.length} snippet(s) sélectionné(s) ?\n\nCette action est irréversible.`
@@ -376,18 +401,7 @@ export default function AdminSnippets() {
     return true;
   };
 
-  const handleBulkGlobalHit = async (items: AdminSnippet[], nextValue: boolean) => {
-    const songIds = Array.from(
-      new Set(items.map((s) => s.songId).filter((id): id is string => Boolean(id)))
-    );
-    for (const songId of songIds) {
-      await updateDocument("songs", songId, { isGlobalHit: nextValue, updatedAt: serverTimestamp() });
-    }
-  };
-
-  const runBulkAction = async (
-    action: "approve" | "reject" | "delete" | "global-on" | "global-off"
-  ) => {
+  const runBulkAction = async (action: "approve" | "delete") => {
     const items = snippets.filter((s) => selectedIds.has(s.id));
     if (!items.length) return;
     setBulkLoading(true);
@@ -404,37 +418,11 @@ export default function AdminSnippets() {
         invalidateGameCache();
         setReport(`✅ ${items.length} snippet(s) approuvé(s).`);
       }
-      if (action === "reject") {
-        await handleBulkReject(items);
-        setSnippets((prev) =>
-          prev.map((s) =>
-            selectedIds.has(s.id) ? { ...s, isApproved: false, licenseStatus: "removed" } : s
-          )
-        );
-        invalidateGameCache();
-        setReport(`🚫 ${items.length} snippet(s) rejeté(s).`);
-      }
       if (action === "delete") {
         const deleted = await handleBulkDelete(items);
         if (!deleted) return;
         setSnippets((prev) => prev.filter((s) => !selectedIds.has(s.id)));
         setReport(`🗑️ ${items.length} snippet(s) supprimé(s) définitivement.`);
-      }
-      if (action === "global-on") {
-        await handleBulkGlobalHit(items, true);
-        const songIds = new Set(items.map((s) => s.songId));
-        setSnippets((prev) =>
-          prev.map((s) => (songIds.has(s.songId) ? { ...s, isGlobalHit: true } : s))
-        );
-        setReport("🌍 Chansons sélectionnées ajoutées aux Global Hits.");
-      }
-      if (action === "global-off") {
-        await handleBulkGlobalHit(items, false);
-        const songIds = new Set(items.map((s) => s.songId));
-        setSnippets((prev) =>
-          prev.map((s) => (songIds.has(s.songId) ? { ...s, isGlobalHit: false } : s))
-        );
-        setReport("↩️ Chansons sélectionnées retirées des Global Hits.");
       }
       clearSelection();
     } catch (err) {
@@ -453,7 +441,6 @@ export default function AdminSnippets() {
       containsTitle: snippet.containsTitle ?? false,
       isApproved: snippet.isApproved ?? false,
       licenseStatus: snippet.licenseStatus ?? "manual_mvp",
-      isGlobalHit: Boolean(snippet.isGlobalHit),
     });
     setErrors([]);
     setReport(null);
@@ -493,12 +480,6 @@ export default function AdminSnippets() {
         licenseStatus: finalLicenseStatus,
         updatedAt: serverTimestamp(),
       });
-      if (editingSnippet.songId) {
-        await updateDocument("songs", editingSnippet.songId, {
-          isGlobalHit: editForm.isGlobalHit,
-          updatedAt: serverTimestamp(),
-        });
-      }
       setSnippets((prev) =>
         prev.map((s) =>
           s.id === editingSnippet.id
@@ -510,7 +491,6 @@ export default function AdminSnippets() {
                 containsTitle: editForm.containsTitle,
                 isApproved: finalIsApproved,
                 licenseStatus: finalLicenseStatus as import("../../types").LicenseStatus,
-                isGlobalHit: editForm.isGlobalHit,
               }
             : s
         )
@@ -551,6 +531,72 @@ export default function AdminSnippets() {
       setReport(`✅ ${pendingFilteredSnippets.length} snippet(s) filtré(s) approuvé(s).`);
     } catch (err) {
       setErrors([`Erreur approbation massive : ${String(err)}`]);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const openPlaylistModal = (snippet: AdminSnippet) => {
+    setPlaylistModal({ snippet, selected: snippet.songPlaylists ?? [] });
+  };
+
+  const savePlaylistAssignment = async () => {
+    if (!playlistModal || !playlistModal.snippet.songId) return;
+    setPlaylistModalSaving(true);
+    try {
+      const selected = playlistModal.selected;
+      const updates: Record<string, unknown> = {
+        playlists: selected,
+        isGlobalHit: selected.includes("global-hits"),
+        isRapFr: selected.includes("rap-fr"),
+        updatedAt: serverTimestamp(),
+      };
+      await updateDocument("songs", playlistModal.snippet.songId, updates);
+      setSnippets((prev) =>
+        prev.map((s) => s.songId === playlistModal.snippet.songId ? { ...s, songPlaylists: selected } : s)
+      );
+      invalidateGameCache();
+      setReport(`✅ Playlists mises à jour.`);
+      setPlaylistModal(null);
+    } catch (err) {
+      setErrors([`Erreur mise à jour playlist : ${String(err)}`]);
+    } finally {
+      setPlaylistModalSaving(false);
+    }
+  };
+
+  const saveBulkPlaylistAssignment = async () => {
+    if (!bulkPlaylistModal.length) { setBulkPlaylistModalOpen(false); return; }
+    setBulkLoading(true);
+    try {
+      const songIds = Array.from(new Set(
+        snippets.filter((s) => selectedIds.has(s.id) && s.songId).map((s) => s.songId!)
+      ));
+      for (const songId of songIds) {
+        const song = snippets.find((s) => s.songId === songId);
+        const current = song?.songPlaylists ?? [];
+        const next = Array.from(new Set([...current, ...bulkPlaylistModal]));
+        await updateDocument("songs", songId, {
+          playlists: next,
+          isGlobalHit: next.includes("global-hits"),
+          isRapFr: next.includes("rap-fr"),
+          updatedAt: serverTimestamp(),
+        });
+      }
+      setSnippets((prev) =>
+        prev.map((s) => {
+          if (!selectedIds.has(s.id)) return s;
+          const current = s.songPlaylists ?? [];
+          return { ...s, songPlaylists: Array.from(new Set([...current, ...bulkPlaylistModal])) };
+        })
+      );
+      invalidateGameCache();
+      setReport(`✅ ${bulkPlaylistModal.length} playlist(s) ajoutée(s) à ${songIds.length} chanson(s).`);
+      clearSelection();
+      setBulkPlaylistModalOpen(false);
+      setBulkPlaylistModal([]);
+    } catch (err) {
+      setErrors([`Erreur action groupée playlist : ${String(err)}`]);
     } finally {
       setBulkLoading(false);
     }
@@ -601,14 +647,14 @@ export default function AdminSnippets() {
   const resetFilters = () => {
     setSearch("");
     setFilterStatus("pending");
-    setFilterArtist("all");
+    setFilterArtists([]);
+    setFilterGenres([]);
+    setFilterPlaylists([]);
     setFilterSong("all");
     setFilterDifficulty("all");
     setSortColumn("artistName");
     setSortDirection("asc");
   };
-
-  // ── Derived state ─────────────────────────────────────────────────────────
 
   const pendingSnippets = useMemo(() => snippets.filter((s) => getSnippetStatus(s) === "pending"), [snippets]);
   const approvedSnippets = useMemo(() => snippets.filter((s) => getSnippetStatus(s) === "approved"), [snippets]);
@@ -628,16 +674,6 @@ export default function AdminSnippets() {
   );
   const canGenerateGlobalGame = easyApprovedCount >= 5 && hardApprovedCount >= 5 && uniqueApprovedSongsCount >= 10;
 
-  const artistOptions = useMemo(() => {
-    const artists = new Map<string, string>();
-    snippets.forEach((s) => {
-      if (s.artistId && s.artistName) artists.set(s.artistId, s.artistName);
-    });
-    return Array.from(artists.entries())
-      .map(([id, name]) => ({ id, name }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [snippets]);
-
   const songOptions = useMemo(() => {
     const songs = new Map<string, { id: string; title: string; artistName: string; artistId: string }>();
     snippets.forEach((s) => {
@@ -650,10 +686,31 @@ export default function AdminSnippets() {
     });
   }, [snippets]);
 
+  const genreOptions = useMemo(() => {
+    const genres = new Set<string>();
+    snippets.forEach((s) => { if (s.songGenre) genres.add(s.songGenre); });
+    return Array.from(genres).sort().map((g) => ({ id: g, label: g }));
+  }, [snippets]);
+
+  const playlistOptions = useMemo(
+    () => playlists.map((p) => ({ id: p.slug, label: `${p.emoji ?? "🎵"} ${p.name}` })),
+    [playlists]
+  );
+
+  const artistOptions = useMemo(() => {
+    const artists = new Map<string, string>();
+    snippets.forEach((s) => {
+      if (s.artistId && s.artistName) artists.set(s.artistId, s.artistName);
+    });
+    return Array.from(artists.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [snippets]);
+
   const filteredSongOptions = useMemo(() => {
-    if (filterArtist === "all") return songOptions;
-    return songOptions.filter((s) => s.artistId === filterArtist);
-  }, [songOptions, filterArtist]);
+    if (filterArtists.length === 0) return songOptions;
+    return songOptions.filter((s) => filterArtists.includes(s.artistId));
+  }, [songOptions, filterArtists]);
 
   const filteredSnippets = useMemo(() => {
     let result = [...snippets];
@@ -670,7 +727,9 @@ export default function AdminSnippets() {
       );
     }
     if (filterStatus !== "all") result = result.filter((s) => getSnippetStatus(s) === filterStatus);
-    if (filterArtist !== "all") result = result.filter((s) => s.artistId === filterArtist);
+    if (filterArtists.length > 0) result = result.filter((s) => filterArtists.includes(s.artistId));
+    if (filterGenres.length > 0) result = result.filter((s) => s.songGenre != null && filterGenres.includes(s.songGenre));
+    if (filterPlaylists.length > 0) result = result.filter((s) => filterPlaylists.some((p) => (s.songPlaylists ?? []).includes(p)));
     if (filterSong !== "all") result = result.filter((s) => s.songId === filterSong);
     if (filterDifficulty !== "all") result = result.filter((s) => String(s.difficulty) === filterDifficulty);
 
@@ -689,14 +748,13 @@ export default function AdminSnippets() {
     });
 
     return result;
-  }, [snippets, search, filterStatus, filterArtist, filterSong, filterDifficulty, sortColumn, sortDirection]);
+  }, [snippets, search, filterStatus, filterArtists, filterGenres, filterPlaylists, filterSong, filterDifficulty, sortColumn, sortDirection]);
 
   const filteredPendingCount = useMemo(
     () => filteredSnippets.filter((s) => getSnippetStatus(s) === "pending").length,
     [filteredSnippets]
   );
 
-  // Group by song for review mode
   const snippetsBySong = useMemo(() => {
     const groups = new Map<
       string,
@@ -734,18 +792,15 @@ export default function AdminSnippets() {
   }, []);
 
   useEffect(() => {
-    if (filterSong !== "all" && filterArtist !== "all") {
+    if (filterSong !== "all" && filterArtists.length > 0) {
       const selectedSong = songOptions.find((s) => s.id === filterSong);
-      if (selectedSong && selectedSong.artistId !== filterArtist) setFilterSong("all");
+      if (selectedSong && !filterArtists.includes(selectedSong.artistId)) setFilterSong("all");
     }
-  }, [filterArtist, filterSong, songOptions]);
+  }, [filterArtists, filterSong, songOptions]);
 
-  // Auto-switch to review mode when artist is selected
   useEffect(() => {
-    if (filterArtist !== "all") setViewMode("review");
-  }, [filterArtist]);
-
-  // ── Render ────────────────────────────────────────────────────────────────
+    if (filterArtists.length > 0) setViewMode("review");
+  }, [filterArtists]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -812,22 +867,18 @@ export default function AdminSnippets() {
           className="bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-gray-600 outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/10"
         />
 
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-          <label className="flex flex-col gap-1.5">
+        <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
+          <div className="flex flex-col gap-1.5">
             <span className="text-gray-500 text-xs font-bold">Artiste</span>
-            <select
-              value={filterArtist}
-              onChange={(e) => setFilterArtist(e.target.value)}
-              className="bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none focus:border-yellow-400"
-            >
-              <option value="all">Tous les artistes</option>
-              {artistOptions.map((a) => (
-                <option key={a.id} value={a.id}>{a.name}</option>
-              ))}
-            </select>
-          </label>
+            <MultiSelectDropdown
+              label="Tous les artistes"
+              options={artistOptions.map((a) => ({ id: a.id, label: a.name }))}
+              selected={filterArtists}
+              onChange={setFilterArtists}
+            />
+          </div>
 
-          <label className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5">
             <span className="text-gray-500 text-xs font-bold">Chanson</span>
             <select
               value={filterSong}
@@ -839,9 +890,9 @@ export default function AdminSnippets() {
                 <option key={s.id} value={s.id}>{s.artistName} — {s.title}</option>
               ))}
             </select>
-          </label>
+          </div>
 
-          <label className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5">
             <span className="text-gray-500 text-xs font-bold">Statut</span>
             <select
               value={filterStatus}
@@ -853,9 +904,9 @@ export default function AdminSnippets() {
               <option value="approved">Approuvés</option>
               <option value="rejected">Rejetés</option>
             </select>
-          </label>
+          </div>
 
-          <label className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5">
             <span className="text-gray-500 text-xs font-bold">Difficulté</span>
             <select
               value={filterDifficulty}
@@ -869,14 +920,33 @@ export default function AdminSnippets() {
               <option value="4">4 — Difficile</option>
               <option value="5">5 — Très difficile</option>
             </select>
-          </label>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <span className="text-gray-500 text-xs font-bold">Genre</span>
+            <MultiSelectDropdown
+              label="Tous les genres"
+              options={genreOptions}
+              selected={filterGenres}
+              onChange={setFilterGenres}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <span className="text-gray-500 text-xs font-bold">Playlist</span>
+            <MultiSelectDropdown
+              label="Toutes les playlists"
+              options={playlistOptions}
+              selected={filterPlaylists}
+              onChange={setFilterPlaylists}
+            />
+          </div>
         </div>
       </div>
 
       {/* Quick actions bar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          {/* View mode toggle */}
           <div className="flex rounded-xl border border-white/10 overflow-hidden">
             <button
               onClick={() => setViewMode("review")}
@@ -901,7 +971,7 @@ export default function AdminSnippets() {
           </div>
           <span className="text-gray-600 text-xs">
             {filteredSnippets.length} snippet{filteredSnippets.length !== 1 ? "s" : ""}
-            {filterArtist !== "all" && (
+            {filterArtists.length > 0 && (
               <span> · {snippetsBySong.length} chanson{snippetsBySong.length !== 1 ? "s" : ""}</span>
             )}
           </span>
@@ -918,7 +988,7 @@ export default function AdminSnippets() {
         )}
       </div>
 
-      {/* Audio previews — visible car nécessaire pour le blindtest */}
+      {/* Audio previews */}
       <div className="bg-gray-950/70 border border-white/10 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center gap-4">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-black text-white">Previews audio (blindtest)</p>
@@ -982,17 +1052,9 @@ export default function AdminSnippets() {
                 className="rounded-xl border border-green-500/25 bg-green-500/15 px-4 py-2 text-sm font-black text-green-300 transition hover:bg-green-500/25 disabled:opacity-50">
                 Approuver
               </button>
-              <button onClick={() => runBulkAction("reject")} disabled={bulkLoading}
-                className="rounded-xl border border-red-500/25 bg-red-500/15 px-4 py-2 text-sm font-black text-red-300 transition hover:bg-red-500/25 disabled:opacity-50">
-                Rejeter
-              </button>
-              <button onClick={() => runBulkAction("global-on")} disabled={bulkLoading}
-                className="rounded-xl border border-yellow-400/25 bg-yellow-400/15 px-4 py-2 text-sm font-black text-yellow-300 transition hover:bg-yellow-400/25 disabled:opacity-50">
-                Passer Global Hit
-              </button>
-              <button onClick={() => runBulkAction("global-off")} disabled={bulkLoading}
-                className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-black text-gray-300 transition hover:bg-white/[0.08] disabled:opacity-50">
-                Retirer Global Hit
+              <button onClick={() => setBulkPlaylistModalOpen(true)} disabled={bulkLoading}
+                className="rounded-xl border border-blue-500/25 bg-blue-500/15 px-4 py-2 text-sm font-black text-blue-300 transition hover:bg-blue-500/25 disabled:opacity-50">
+                Ajouter à une playlist
               </button>
               <button onClick={() => runBulkAction("delete")} disabled={bulkLoading}
                 className="rounded-xl border border-red-500/40 bg-red-950/70 px-4 py-2 text-sm font-black text-red-200 transition hover:bg-red-500/25 disabled:opacity-50">
@@ -1007,7 +1069,7 @@ export default function AdminSnippets() {
         </div>
       )}
 
-      {/* ── Review mode ──────────────────────────────────────────────────── */}
+      {/* Review mode */}
       {viewMode === "review" && !loading && (
         <div className="flex flex-col gap-4">
           {filteredSnippets.length === 0 && (
@@ -1066,11 +1128,6 @@ export default function AdminSnippets() {
                               Contient le titre
                             </span>
                           )}
-                          {snippet.isGlobalHit && (
-                            <span className="text-xs bg-yellow-400/15 text-yellow-300 border border-yellow-400/25 px-2 py-0.5 rounded font-black">
-                              Global Hit
-                            </span>
-                          )}
                         </div>
 
                         {/* Full snippet text */}
@@ -1114,15 +1171,6 @@ export default function AdminSnippets() {
                               {isLoading ? "…" : "Approuver"}
                             </button>
                           )}
-                          {status !== "rejected" && (
-                            <button
-                              onClick={() => rejectSnippet(snippet.id)}
-                              disabled={isLoading}
-                              className="flex-1 bg-red-500/15 text-red-300 border border-red-500/25 text-xs font-black py-2 rounded-xl hover:bg-red-500/25 disabled:opacity-50 transition active:scale-95"
-                            >
-                              {isLoading ? "…" : "Rejeter"}
-                            </button>
-                          )}
                           {status === "rejected" && (
                             <button
                               onClick={() => restoreSnippetToPending(snippet.id)}
@@ -1132,15 +1180,14 @@ export default function AdminSnippets() {
                               Restaurer
                             </button>
                           )}
-                          {status === "approved" && (
-                            <button
-                              onClick={() => rejectSnippet(snippet.id)}
-                              disabled={isLoading}
-                              className="flex-1 bg-red-500/15 text-red-300 border border-red-500/25 text-xs font-black py-2 rounded-xl hover:bg-red-500/25 disabled:opacity-50 transition active:scale-95"
-                            >
-                              Rejeter
-                            </button>
-                          )}
+                          <button
+                            onClick={() => openPlaylistModal(snippet)}
+                            className="flex-1 bg-blue-500/15 text-blue-300 border border-blue-500/25 text-xs font-black py-2 rounded-xl hover:bg-blue-500/25 transition"
+                          >
+                            {(snippet.songPlaylists ?? []).length > 0
+                              ? `Playlists (${(snippet.songPlaylists ?? []).length})`
+                              : "Ajouter à playlist"}
+                          </button>
                           <button
                             onClick={() => deleteSnippetPermanently(snippet)}
                             disabled={isLoading}
@@ -1160,7 +1207,7 @@ export default function AdminSnippets() {
         </div>
       )}
 
-      {/* ── Table mode ───────────────────────────────────────────────────── */}
+      {/* Table mode */}
       {viewMode === "table" && (
         <div className="overflow-x-auto rounded-2xl border border-white/10 bg-gray-950/60">
           <table className="w-full min-w-[1480px] text-xs text-gray-300">
@@ -1182,7 +1229,7 @@ export default function AdminSnippets() {
                 <SortableHeader label="Diff." column="difficulty" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort} />
                 <SortableHeader label="Type" column="snippetType" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort} />
                 <SortableHeader label="Titre" column="containsTitle" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort} />
-                <th className="px-3 py-3 text-left whitespace-nowrap">Global Hit</th>
+                <th className="px-3 py-3 text-left whitespace-nowrap">Playlists</th>
                 <SortableHeader label="Statut" column="status" activeColumn={sortColumn} direction={sortDirection} onSort={handleSort} />
                 <th className="px-3 py-3 text-right whitespace-nowrap">Actions</th>
               </tr>
@@ -1249,10 +1296,14 @@ export default function AdminSnippets() {
                       )}
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap">
-                      {snippet.isGlobalHit ? (
-                        <span className="bg-yellow-400/15 text-yellow-300 border border-yellow-400/25 rounded-full px-3 py-1 text-xs font-black">Oui</span>
+                      {(snippet.songPlaylists ?? []).length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {(snippet.songPlaylists ?? []).map((p) => (
+                            <span key={p} className="rounded-full bg-blue-500/15 border border-blue-500/25 px-2 py-0.5 text-[10px] font-bold text-blue-300">{p}</span>
+                          ))}
+                        </div>
                       ) : (
-                        <span className="bg-white/[0.06] text-gray-400 border border-white/10 rounded-full px-3 py-1 text-xs font-bold">Non</span>
+                        <span className="text-gray-600 text-xs">—</span>
                       )}
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap">
@@ -1272,24 +1323,16 @@ export default function AdminSnippets() {
                             Approuver
                           </button>
                         )}
-                        {!isRejected && (
-                          <button onClick={() => rejectSnippet(snippet.id)} disabled={isCurrentLoading}
-                            className="bg-red-500/15 text-red-300 border border-red-500/25 px-2.5 py-1.5 rounded-lg font-bold hover:bg-red-500/25 disabled:opacity-50 transition text-xs">
-                            Rejeter
-                          </button>
-                        )}
+                        <button onClick={() => openPlaylistModal(snippet)}
+                          className="bg-blue-500/15 text-blue-300 border border-blue-500/25 px-2.5 py-1.5 rounded-lg font-bold hover:bg-blue-500/25 disabled:opacity-50 transition text-xs">
+                          {(snippet.songPlaylists ?? []).length > 0 ? `Playlists (${(snippet.songPlaylists ?? []).length})` : "Playlists"}
+                        </button>
                         {isRejected && (
                           <button onClick={() => restoreSnippetToPending(snippet.id)} disabled={isCurrentLoading}
                             className="bg-white/[0.04] text-gray-300 border border-white/10 px-2.5 py-1.5 rounded-lg font-bold hover:bg-white/[0.08] disabled:opacity-50 transition text-xs">
                             Restaurer
                           </button>
                         )}
-                        <button onClick={() => toggleGlobalHit(snippet)} disabled={isCurrentLoading}
-                          className={snippet.isGlobalHit
-                            ? "bg-yellow-400/15 text-yellow-300 border border-yellow-400/25 px-2.5 py-1.5 rounded-lg font-bold hover:bg-yellow-400/25 disabled:opacity-50 transition text-xs"
-                            : "bg-white/[0.04] text-gray-300 border border-white/10 px-2.5 py-1.5 rounded-lg font-bold hover:bg-white/[0.08] disabled:opacity-50 transition text-xs"}>
-                          {snippet.isGlobalHit ? "Retirer Global" : "Global Hit"}
-                        </button>
                         <button onClick={() => deleteSnippetPermanently(snippet)} disabled={isCurrentLoading}
                           className="bg-red-950/60 text-red-200 border border-red-500/35 px-2.5 py-1.5 rounded-lg font-black hover:bg-red-500/25 disabled:opacity-50 transition text-xs">
                           ×
@@ -1304,7 +1347,7 @@ export default function AdminSnippets() {
         </div>
       )}
 
-      {/* E2E & tools (collapsed at bottom) */}
+      {/* E2E & tools */}
       <details className="group">
         <summary className="cursor-pointer list-none">
           <div className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-300 transition select-none">
@@ -1314,7 +1357,6 @@ export default function AdminSnippets() {
         </summary>
 
         <div className="mt-4 flex flex-col gap-4">
-          {/* E2E panel */}
           <div className="bg-gray-950/70 border border-white/10 rounded-3xl p-5 shadow-xl shadow-black/20 flex flex-col gap-4">
             <div>
               <h3 className="text-xl font-black text-white tracking-tight">Test end-to-end</h3>
@@ -1449,12 +1491,6 @@ export default function AdminSnippets() {
                       className="accent-yellow-400" />
                     <span className="text-sm text-gray-300">Snippet approuvé</span>
                   </label>
-                  <label className="bg-black/40 border border-yellow-400/20 rounded-2xl px-4 py-3 flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" checked={editForm.isGlobalHit}
-                      onChange={(e) => setEditForm((prev) => prev ? { ...prev, isGlobalHit: e.target.checked } : prev)}
-                      className="accent-yellow-400" />
-                    <span className="text-sm text-gray-300">Chanson en Global Hit</span>
-                  </label>
                 </div>
               </div>
             </div>
@@ -1467,6 +1503,113 @@ export default function AdminSnippets() {
               <button onClick={saveSnippetEdit} disabled={savingEdit}
                 className="bg-yellow-400 text-black font-black rounded-2xl px-5 py-3 text-sm hover:bg-yellow-300 disabled:opacity-50 transition active:scale-95">
                 {savingEdit ? "Sauvegarde…" : "Sauvegarder"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Playlist assignment modal */}
+      {playlistModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md bg-gray-950 border border-white/10 rounded-3xl shadow-2xl overflow-hidden">
+            <div className="px-6 py-5 border-b border-white/10 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-blue-400 font-black">Playlists</p>
+                <h3 className="text-xl font-black text-white mt-1">{playlistModal.snippet.songTitle}</h3>
+                <p className="text-gray-500 text-sm">{playlistModal.snippet.artistName}</p>
+              </div>
+              <button onClick={() => setPlaylistModal(null)}
+                className="bg-white/[0.04] text-gray-300 border border-white/10 rounded-xl px-3 py-2 font-bold hover:bg-white/[0.08] transition">
+                ✕
+              </button>
+            </div>
+            <div className="p-6 space-y-3">
+              {playlists.length === 0 && (
+                <p className="text-sm text-gray-500">Aucune playlist disponible. Crée-en une dans l'onglet Playlists.</p>
+              )}
+              {playlists.map((pl) => {
+                const isIn = playlistModal.selected.includes(pl.slug);
+                return (
+                  <label key={pl.slug} className="flex items-center gap-3 rounded-2xl border border-white/[0.07] bg-black/20 px-4 py-3 cursor-pointer hover:bg-white/[0.03] transition">
+                    <input
+                      type="checkbox"
+                      checked={isIn}
+                      onChange={() => setPlaylistModal((prev) => {
+                        if (!prev) return prev;
+                        const next = isIn
+                          ? prev.selected.filter((s) => s !== pl.slug)
+                          : [...prev.selected, pl.slug];
+                        return { ...prev, selected: next };
+                      })}
+                      className="h-4 w-4 accent-yellow-400"
+                    />
+                    <span className="text-xl">{pl.emoji ?? "🎵"}</span>
+                    <span className="flex-1 text-sm font-bold text-white">{pl.name}</span>
+                    {isIn && <span className="text-xs font-black text-yellow-400">✓</span>}
+                  </label>
+                );
+              })}
+            </div>
+            <div className="px-6 py-4 border-t border-white/10 flex gap-3 justify-end">
+              <button onClick={() => setPlaylistModal(null)} disabled={playlistModalSaving}
+                className="bg-white/[0.04] text-gray-300 border border-white/10 rounded-2xl px-5 py-2.5 text-sm font-bold hover:bg-white/[0.08] disabled:opacity-50 transition">
+                Annuler
+              </button>
+              <button onClick={savePlaylistAssignment} disabled={playlistModalSaving}
+                className="bg-yellow-400 text-black font-black rounded-2xl px-5 py-2.5 text-sm hover:bg-yellow-300 disabled:opacity-50 transition">
+                {playlistModalSaving ? "Sauvegarde…" : "Sauvegarder"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk playlist modal */}
+      {bulkPlaylistModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md bg-gray-950 border border-white/10 rounded-3xl shadow-2xl overflow-hidden">
+            <div className="px-6 py-5 border-b border-white/10 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-blue-400 font-black">Action groupée</p>
+                <h3 className="text-xl font-black text-white mt-1">Ajouter à une playlist</h3>
+                <p className="text-gray-500 text-sm">{selectedSnippets.length} snippet(s) sélectionné(s)</p>
+              </div>
+              <button onClick={() => { setBulkPlaylistModalOpen(false); setBulkPlaylistModal([]); }}
+                className="bg-white/[0.04] text-gray-300 border border-white/10 rounded-xl px-3 py-2 font-bold hover:bg-white/[0.08] transition">
+                ✕
+              </button>
+            </div>
+            <div className="p-6 space-y-3">
+              {playlists.length === 0 && (
+                <p className="text-sm text-gray-500">Aucune playlist disponible.</p>
+              )}
+              {playlists.map((pl) => {
+                const isIn = bulkPlaylistModal.includes(pl.slug);
+                return (
+                  <label key={pl.slug} className="flex items-center gap-3 rounded-2xl border border-white/[0.07] bg-black/20 px-4 py-3 cursor-pointer hover:bg-white/[0.03] transition">
+                    <input
+                      type="checkbox"
+                      checked={isIn}
+                      onChange={() => setBulkPlaylistModal((prev) =>
+                        isIn ? prev.filter((s) => s !== pl.slug) : [...prev, pl.slug]
+                      )}
+                      className="h-4 w-4 accent-yellow-400"
+                    />
+                    <span className="text-xl">{pl.emoji ?? "🎵"}</span>
+                    <span className="flex-1 text-sm font-bold text-white">{pl.name}</span>
+                  </label>
+                );
+              })}
+            </div>
+            <div className="px-6 py-4 border-t border-white/10 flex gap-3 justify-end">
+              <button onClick={() => { setBulkPlaylistModalOpen(false); setBulkPlaylistModal([]); }} disabled={bulkLoading}
+                className="bg-white/[0.04] text-gray-300 border border-white/10 rounded-2xl px-5 py-2.5 text-sm font-bold hover:bg-white/[0.08] disabled:opacity-50 transition">
+                Annuler
+              </button>
+              <button onClick={saveBulkPlaylistAssignment} disabled={bulkLoading || bulkPlaylistModal.length === 0}
+                className="bg-yellow-400 text-black font-black rounded-2xl px-5 py-2.5 text-sm hover:bg-yellow-300 disabled:opacity-50 transition">
+                {bulkLoading ? "En cours…" : "Appliquer"}
               </button>
             </div>
           </div>

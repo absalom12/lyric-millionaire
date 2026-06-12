@@ -34,6 +34,10 @@ export default function AdminPlaylists() {
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // Legacy migration
+  const [migrating, setMigrating] = useState(false);
+  const [migrateReport, setMigrateReport] = useState<string | null>(null);
+
   useEffect(() => {
     Promise.all([
       getDocs(collection(db, "songs")),
@@ -117,6 +121,29 @@ export default function AdminPlaylists() {
       setShowForm(false);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const runLegacyMigration = async (slug: string) => {
+    const legacyKey = LEGACY_FIELD[slug];
+    if (!legacyKey) return;
+    setMigrating(true);
+    setMigrateReport(null);
+    let count = 0;
+    try {
+      for (const song of songs) {
+        const hasLegacy = legacyKey === "isGlobalHit" ? song.isGlobalHit : song.isRapFr;
+        const alreadyIn = song.playlists?.includes(slug);
+        if (hasLegacy && !alreadyIn) {
+          await updateDoc(doc(db, "songs", song.id), { playlists: arrayUnion(slug) });
+          setSongs((prev) => prev.map((s) => s.id === song.id ? { ...s, playlists: [...(s.playlists ?? []), slug] } : s));
+          count++;
+        }
+      }
+      invalidateGameCache();
+      setMigrateReport(`✅ ${count} chanson(s) migrée(s) vers la playlist "${slug}".`);
+    } finally {
+      setMigrating(false);
     }
   };
 
@@ -256,13 +283,30 @@ export default function AdminPlaylists() {
                     </p>
                   </div>
                 </div>
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Rechercher…"
-                  className="w-48 sm:w-64 rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-2 text-sm text-white placeholder-gray-600 outline-none focus:border-yellow-400/40"
-                />
+                <div className="flex items-center gap-2">
+                  {LEGACY_FIELD[selected.slug] && (
+                    <button
+                      onClick={() => runLegacyMigration(selected.slug)}
+                      disabled={migrating}
+                      title="Copier les chansons avec le champ legacy vers cette playlist"
+                      className="rounded-xl border border-orange-500/25 bg-orange-500/10 px-3 py-2 text-xs font-bold text-orange-300 hover:bg-orange-500/20 disabled:opacity-50 transition whitespace-nowrap"
+                    >
+                      {migrating ? "Migration…" : "Migrer legacy →"}
+                    </button>
+                  )}
+                  <input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Rechercher…"
+                    className="w-48 sm:w-64 rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-2 text-sm text-white placeholder-gray-600 outline-none focus:border-yellow-400/40"
+                  />
+                </div>
               </div>
+              {migrateReport && (
+                <div className="rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-2.5 text-xs font-bold text-green-300">
+                  {migrateReport}
+                </div>
+              )}
 
               <div className="overflow-hidden rounded-2xl border border-white/[0.07]">
                 <div className="border-b border-white/[0.07] bg-white/[0.02] px-4 py-2.5 flex items-center gap-3 text-xs text-gray-600">

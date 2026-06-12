@@ -35,7 +35,6 @@ import AdminDaily from "./pages/admin/AdminDaily";
 import AdminSnippetGen from "./pages/admin/AdminSnippetGen";
 import AdminPreviews from "./pages/admin/AdminPreviews";
 import AdminPlaylists from "./pages/admin/AdminPlaylists";
-import AdminSnippets2 from "./pages/admin/AdminSnippets2";
 
 console.error("[DEBUG App] All imports loaded successfully");
 console.error("[DEBUG App] AdminSnippetGen:", typeof AdminSnippetGen);
@@ -79,7 +78,6 @@ export default function App() {
               </AuthGuard>
             }
           >
-            {/* Index → dashboard */}
             <Route index element={<AdminDashboard />} />
             <Route path="import" element={<AdminImport />} />
             <Route path="snippets" element={<AdminSnippets />} />
@@ -87,7 +85,6 @@ export default function App() {
             <Route path="maker" element={<AdminSnippetGen />} />
             <Route path="previews" element={<AdminPreviews />} />
             <Route path="playlists" element={<AdminPlaylists />} />
-            <Route path="snippets2" element={<AdminSnippets2 />} />
           </Route>
 
           {/* Catch-all */}

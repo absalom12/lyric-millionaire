@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getGameRun, generateGameRun } from "../lib/gameEngine";
-import { updateDocument } from "../lib/firebase";
-import { GameRun } from "../types";
+import { updateDocument, getDocs, collection, db } from "../lib/firebase";
+import { GamePlaylist, GameRun } from "../types";
 import ThemeToggle, { useAppTheme } from "../components/ThemeToggle";
 import LanguageSelector from "../components/LanguageSelector";
 import { useLanguage } from "../i18n/LanguageContext";
@@ -218,6 +218,7 @@ export default function Result() {
   const { t, language } = useLanguage();
 
   const [run, setRun] = useState<(GameRun & { id: string; shareClicks?: number }) | null>(null);
+  const [playlists, setPlaylists] = useState<GamePlaylist[]>([]);
   const [sharingImage, setSharingImage] = useState(false);
   const [sharingLink, setSharingLink] = useState(false);
   const [message, setMessage] = useState("");
@@ -229,6 +230,9 @@ export default function Result() {
       setRun(r as GameRun & { id: string; shareClicks?: number });
       if (r) Sounds.victory();
     });
+    getDocs(collection(db, "gamePlaylists"))
+      .then((snap) => setPlaylists(snap.docs.map((d) => ({ id: d.id, ...d.data() } as GamePlaylist))))
+      .catch(() => {});
   }, [runId]);
 
   const stats = useMemo(() => {
@@ -242,9 +246,11 @@ export default function Result() {
   function getContentLabel(gameRun: GameRun): string {
     if (gameRun.modeSlug === "artist-of-the-day") {
       const name = (gameRun as any).artistName ?? (gameRun as any).dailyArtistName;
-      return name ? name : "Artiste du jour";
+      return name ?? "Artiste du jour";
     }
-    return "Global Hits";
+    const playlist = playlists.find((p) => p.slug === gameRun.modeSlug);
+    if (playlist) return `${playlist.emoji ?? ""} ${playlist.name}`.trim();
+    return gameRun.modeSlug;
   }
 
   function getPlayModeLabel(gameRun: GameRun): string {

@@ -187,8 +187,8 @@ async function fetchSongsForMode(
   if (modeSlug === "rap-fr") {
     return all.filter((s) => s.isRapFr === true || s.playlists?.includes("rap-fr"));
   }
-
-  return all;
+  // Generic: any playlist slug
+  return all.filter((s) => (s.playlists ?? []).includes(modeSlug));
 }
 
 /**
@@ -293,7 +293,7 @@ function buildBalancedUniqueSelection(snippets: SnippetWithId[]): SnippetWithId[
 
 function buildSnippetPool(snippets: SnippetWithId[], modeSlug: GameModeSlug): SnippetWithId[] {
   const preferred = buildBalancedUniqueSelection(snippets);
-  if (modeSlug === "global-hits" || modeSlug === "rap-fr") return preferred;
+  if (modeSlug !== "artist-of-the-day") return preferred;
   // Artist of the day: allow duplicate songs to fill 10 questions if needed
   const preferredIds = new Set(preferred.map((s) => s.id));
   return [...preferred, ...shuffle(snippets.filter((s) => !preferredIds.has(s.id)))];
@@ -343,9 +343,7 @@ export async function generateGameRun(
     throw new Error(
       modeSlug === "artist-of-the-day"
         ? `Pas assez de chansons actives pour cet artiste. Trouvé: ${candidateSongs.length}/4.`
-        : modeSlug === "rap-fr"
-        ? `Pas assez de chansons Rap FR actives. Trouvé: ${candidateSongs.length}/4.`
-        : `Pas assez de chansons Global Hits actives. Trouvé: ${candidateSongs.length}/4.`
+        : `Pas assez de chansons actives pour ce mode (${modeSlug}). Trouvé: ${candidateSongs.length}/4.`
     );
   }
 
@@ -365,12 +363,11 @@ export async function generateGameRun(
 
   const uniqueSongIds = new Set(validSnippets.map((s) => s.songId));
 
-  if ((modeSlug === "global-hits" || modeSlug === "rap-fr") && uniqueSongIds.size < 10) {
-    const label = modeSlug === "rap-fr" ? "Rap FR" : "Global Hits";
+  if (modeSlug !== "artist-of-the-day" && uniqueSongIds.size < 10) {
     throw new Error(
       isBlindtest
-        ? `Pas assez de chansons ${label} avec un extrait audio. Trouvé: ${uniqueSongIds.size}/10.`
-        : `Pas assez de chansons ${label} uniques. Trouvé: ${uniqueSongIds.size}/10.`
+        ? `Pas assez de chansons avec un extrait audio pour "${modeSlug}". Trouvé: ${uniqueSongIds.size}/10.`
+        : `Pas assez de chansons uniques pour "${modeSlug}". Trouvé: ${uniqueSongIds.size}/10.`
     );
   }
 
