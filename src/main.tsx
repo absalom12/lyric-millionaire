@@ -16,6 +16,10 @@ import AdminImport from "./pages/admin/AdminImport";
 import AdminSnippets from "./pages/admin/AdminSnippets";
 import AdminDaily from "./pages/admin/AdminDaily";
 import AdminLogin from "./pages/admin/AdminLogin";
+import AdminSnippetGen from "./pages/admin/AdminSnippetGen";
+import AdminPreviews from "./pages/admin/AdminPreviews";
+import AdminPlaylists from "./pages/admin/AdminPlaylists";
+import AdminSnippets2 from "./pages/admin/AdminSnippets2";
 
 // Auth guard
 import AuthGuard from "./components/AuthGuard";
@@ -33,6 +37,8 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <Route path="/game/:runId" element={<Game />} />
           <Route path="/result/:runId" element={<Result />} />
           <Route path="/play" element={<Navigate to="/" replace />} />
+          <Route path="/play/global-hits" element={<Navigate to="/" replace />} />
+          <Route path="/play/artist-of-the-day" element={<Navigate to="/" replace />} />
           {/* Admin */}
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin" element={<AuthGuard><AdminLayout /></AuthGuard>}>
@@ -40,7 +46,13 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <Route path="import" element={<AdminImport />} />
             <Route path="snippets" element={<AdminSnippets />} />
             <Route path="daily" element={<AdminDaily />} />
+            <Route path="maker" element={<AdminSnippetGen />} />
+            <Route path="previews" element={<AdminPreviews />} />
+            <Route path="playlists" element={<AdminPlaylists />} />
+            <Route path="snippets2" element={<AdminSnippets2 />} />
           </Route>
+          {/* Catch-all */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </LanguageProvider>
