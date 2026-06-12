@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppTheme } from "../components/ThemeToggle";
 import { useLanguage } from "../i18n/LanguageContext";
-import { getDocument, getDocuments, where, limit } from "../lib/firebase";
+import { getDocument, getDocuments, where, limit, getDocs, collection, db } from "../lib/firebase";
 import { generateGameRun } from "../lib/gameEngine";
-import { Artist, DailyArtist, GameModeSlug } from "../types";
+import { Artist, DailyArtist, GameModeSlug, GamePlaylist } from "../types";
 import PageShell from "../components/layout/PageShell";
 import Header from "../components/layout/Header";
 import HeroSection from "../components/home/HeroSection";
@@ -53,6 +53,7 @@ export default function Home() {
   const { t, language } = useLanguage();
 
   const [dailyArtist, setDailyArtist] = useState<DailyArtist | null>(null);
+  const [playlists, setPlaylists] = useState<GamePlaylist[]>([]);
   const [loadingMode, setLoadingMode] = useState<GameModeSlug | null>(null);
   const [error, setError] = useState("");
   const [playMode, setPlayMode] = useState<"lyrics" | "blindtest">("lyrics");
@@ -119,6 +120,9 @@ export default function Home() {
     }
 
     loadDailyArtist();
+    getDocs(collection(db, "gamePlaylists"))
+      .then((snap) => setPlaylists(snap.docs.map((d) => ({ id: d.id, ...d.data() } as GamePlaylist))))
+      .catch(() => {});
 
     return () => {
       cancelled = true;
@@ -164,6 +168,7 @@ export default function Home() {
           t={t}
           isLight={isLight}
           dailyArtist={dailyArtist}
+          playlists={playlists}
           loadingMode={loadingMode}
           error={error}
           playMode={playMode}

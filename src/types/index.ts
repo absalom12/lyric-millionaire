@@ -56,7 +56,7 @@ export interface Snippet {
   updatedAt: Timestamp;
 }
 
-export type GameModeSlug = "global-hits" | "artist-of-the-day" | "rap-fr";
+export type GameModeSlug = string;
 
 export interface GamePlaylist {
   id?: string;

@@ -1,5 +1,5 @@
 import { TranslationDictionary } from "../../i18n/translations";
-import { DailyArtist, GameModeSlug } from "../../types";
+import { DailyArtist, GameModeSlug, GamePlaylist } from "../../types";
 import { cn } from "../../theme/styles";
 import { displayFontClass } from "../../theme/fonts";
 
@@ -17,10 +17,30 @@ function getDailyArtistCover(dailyArtist: DailyArtist | null) {
   return "";
 }
 
+const PLAYLIST_THEMES = [
+  {
+    card: { light: "border-orange-200 bg-gradient-to-br from-white to-orange-50 text-slate-900 shadow-orange-100/60", dark: "border-white/10 bg-gradient-to-br from-white/[0.07] to-white/[0.02] text-white shadow-black/40" },
+    label: { light: "text-orange-600", dark: "text-yellow-400/80" },
+  },
+  {
+    card: { light: "border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 text-slate-900 shadow-blue-100/60", dark: "border-blue-400/20 bg-gradient-to-br from-blue-500/10 to-indigo-500/5 text-white shadow-black/40" },
+    label: { light: "text-blue-600", dark: "text-blue-300/80" },
+  },
+  {
+    card: { light: "border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 text-slate-900 shadow-purple-100/60", dark: "border-purple-400/20 bg-gradient-to-br from-purple-500/10 to-pink-500/5 text-white shadow-black/40" },
+    label: { light: "text-purple-600", dark: "text-purple-300/80" },
+  },
+  {
+    card: { light: "border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 text-slate-900 shadow-green-100/60", dark: "border-green-400/20 bg-gradient-to-br from-green-500/10 to-emerald-500/5 text-white shadow-black/40" },
+    label: { light: "text-green-600", dark: "text-green-300/80" },
+  },
+];
+
 export default function HomeCTA({
   t,
   isLight,
   dailyArtist,
+  playlists,
   loadingMode,
   error,
   playMode,
@@ -30,6 +50,7 @@ export default function HomeCTA({
   t: TranslationDictionary;
   isLight: boolean;
   dailyArtist: DailyArtist | null;
+  playlists: GamePlaylist[];
   loadingMode: GameModeSlug | null;
   error: string;
   playMode: "lyrics" | "blindtest";
@@ -162,78 +183,44 @@ export default function HomeCTA({
           </div>
         </button>
 
-        {/* ── Secondary row: Global Hits + Rap FR ── */}
-        <div className="grid grid-cols-2 gap-3">
-          {/* Global Hits */}
-          <button
-            onClick={() => onStartGame("global-hits")}
-            disabled={isLoading}
-            className={cn(
-              "group relative min-h-[120px] overflow-hidden rounded-[1.4rem] border p-4 text-left shadow-xl transition",
-              "hover:-translate-y-0.5 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
-              isLight
-                ? "border-orange-200 bg-gradient-to-br from-white to-orange-50 text-slate-900 shadow-orange-100/60"
-                : "border-white/10 bg-gradient-to-br from-white/[0.07] to-white/[0.02] text-white shadow-black/40"
-            )}
-          >
-            <div className="flex flex-col h-full justify-between">
-              <div className="flex items-start justify-between gap-2">
-                <p className={cn(
-                  "text-[10px] font-black uppercase tracking-[0.22em]",
-                  isLight ? "text-orange-600" : "text-yellow-400/80"
-                )}>
-                  {t.home.mainMode}
-                </p>
-                <span className="text-2xl transition group-hover:scale-110">
-                  {loadingMode === "global-hits" ? "⏳" : "🌍"}
-                </span>
-              </div>
-              <div>
-                <p className={cn("text-base font-black leading-tight", displayFontClass)}>
-                  {loadingMode === "global-hits" ? t.home.creatingGame : t.home.globalHits}
-                </p>
-                <p className={cn("mt-1 text-xs font-bold leading-snug", isLight ? "text-slate-500" : "text-gray-400")}>
-                  {t.home.globalHitsDescription}
-                </p>
-              </div>
-            </div>
-          </button>
-
-          {/* Rap FR */}
-          <button
-            onClick={() => onStartGame("rap-fr")}
-            disabled={isLoading}
-            className={cn(
-              "group relative min-h-[120px] overflow-hidden rounded-[1.4rem] border p-4 text-left shadow-xl transition",
-              "hover:-translate-y-0.5 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
-              isLight
-                ? "border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 text-slate-900 shadow-blue-100/60"
-                : "border-blue-400/20 bg-gradient-to-br from-blue-500/10 to-indigo-500/5 text-white shadow-black/40"
-            )}
-          >
-            <div className="flex flex-col h-full justify-between">
-              <div className="flex items-start justify-between gap-2">
-                <p className={cn(
-                  "text-[10px] font-black uppercase tracking-[0.22em]",
-                  isLight ? "text-blue-600" : "text-blue-300/80"
-                )}>
-                  Mode
-                </p>
-                <span className="text-2xl transition group-hover:scale-110">
-                  {loadingMode === "rap-fr" ? "⏳" : "🇫🇷"}
-                </span>
-              </div>
-              <div>
-                <p className={cn("text-base font-black leading-tight", displayFontClass)}>
-                  {loadingMode === "rap-fr" ? t.home.creatingGame : "Rap FR"}
-                </p>
-                <p className={cn("mt-1 text-xs font-bold leading-snug", isLight ? "text-slate-500" : "text-gray-400")}>
-                  Hits du rap français
-                </p>
-              </div>
-            </div>
-          </button>
-        </div>
+        {/* ── Playlist game modes (dynamic) ── */}
+        {playlists.length > 0 && (
+          <div className={cn("grid gap-3", playlists.length === 1 ? "grid-cols-1" : "grid-cols-2")}>
+            {playlists.map((playlist, i) => {
+              const theme = PLAYLIST_THEMES[i % PLAYLIST_THEMES.length];
+              const isPlaylistLoading = loadingMode === playlist.slug;
+              return (
+                <button
+                  key={playlist.slug}
+                  onClick={() => onStartGame(playlist.slug)}
+                  disabled={isLoading}
+                  className={cn(
+                    "group relative min-h-[120px] overflow-hidden rounded-[1.4rem] border p-4 text-left shadow-xl transition",
+                    "hover:-translate-y-0.5 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
+                    isLight ? theme.card.light : theme.card.dark
+                  )}
+                >
+                  <div className="flex flex-col h-full justify-between">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className={cn(
+                        "text-[10px] font-black uppercase tracking-[0.22em]",
+                        isLight ? theme.label.light : theme.label.dark
+                      )}>
+                        Mode
+                      </p>
+                      <span className="text-2xl transition group-hover:scale-110">
+                        {isPlaylistLoading ? "⏳" : (playlist.emoji ?? "🎵")}
+                      </span>
+                    </div>
+                    <p className={cn("text-base font-black leading-tight", displayFontClass)}>
+                      {isPlaylistLoading ? t.home.creatingGame : playlist.name}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {error && (
           <div
