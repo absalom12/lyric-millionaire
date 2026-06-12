@@ -98,9 +98,9 @@ export interface GameQuestion {
   correctSongId: string;
   correctTitle: string;
   correctArtist: string;
-  releaseYear?: number;
-  difficulty?: number;
-  spotifyStreams?: number;
+  releaseYear?: number | null;
+  difficulty?: number | null;
+  spotifyStreams?: number | null;
   previewUrl?: string | null;
   answers: QuestionAnswer[];
   selectedSongId?: string;
