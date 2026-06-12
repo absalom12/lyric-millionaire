@@ -37,15 +37,15 @@ import AdminPreviews from "./pages/admin/AdminPreviews";
 import AdminPlaylists from "./pages/admin/AdminPlaylists";
 import AdminSnippets2 from "./pages/admin/AdminSnippets2";
 
-console.log("[DEBUG App] All imports loaded successfully");
-console.log("[DEBUG App] AdminSnippetGen:", typeof AdminSnippetGen);
-console.log("[DEBUG App] AdminPreviews:", typeof AdminPreviews);
-console.log("[DEBUG App] AdminPlaylists:", typeof AdminPlaylists);
-console.log("[DEBUG App] AdminSnippets2:", typeof AdminSnippets2);
+console.error("[DEBUG App] All imports loaded successfully");
+console.error("[DEBUG App] AdminSnippetGen:", typeof AdminSnippetGen);
+console.error("[DEBUG App] AdminPreviews:", typeof AdminPreviews);
+console.error("[DEBUG App] AdminPlaylists:", typeof AdminPlaylists);
+console.error("[DEBUG App] AdminSnippets2:", typeof AdminSnippets2);
 
 function DebugLocation() {
   const loc = useLocation();
-  console.log("[DEBUG Router] Current location:", loc.pathname, "| Routes rendered");
+  console.error("[DEBUG Router] Current location:", loc.pathname, "| Routes rendered");
   return null;
 }
 
