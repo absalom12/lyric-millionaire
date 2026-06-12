@@ -6,6 +6,8 @@ import {
   addDoc,
   doc,
   getDoc,
+  FieldValue,
+  Timestamp,
 } from "firebase/firestore";
 import { db, serverTimestamp } from "./firebase";
 import {
@@ -37,9 +39,8 @@ function sanitizeForFirestore(value: unknown): unknown {
   if (value === undefined) return null;
   if (typeof value === "number" && isNaN(value)) return null;
   if (value === null || typeof value !== "object") return value;
+  if (value instanceof FieldValue || value instanceof Timestamp) return value;
   if (Array.isArray(value)) return value.map(sanitizeForFirestore);
-  const proto = Object.getPrototypeOf(value);
-  if (proto !== Object.prototype && proto !== null) return value;
   return Object.fromEntries(
     Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, sanitizeForFirestore(v)])
   );
